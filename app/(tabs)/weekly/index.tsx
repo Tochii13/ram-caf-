@@ -95,7 +95,7 @@ function WeeklyMenuItemRow({
                   highContrast && styles.menuWarningTextHighContrast,
                 ]}
               >
-                ⚠️ Caution: contains {warningText}
+                Caution: contains {warningText}
               </Text>
             </View>
           ) : null}
