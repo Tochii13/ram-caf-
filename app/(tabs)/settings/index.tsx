@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import { RotateCcw } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import Card from '@/components/Card';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { useSession } from '@/contexts/SessionContext';
-import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, DietaryTag, AppearanceMode } from '@/types';
+import { ALLERGEN_LABELS, DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, DietaryTag, Allergen, AppearanceMode } from '@/types';
 
 const ALL_DIETARY_TAGS: DietaryTag[] = ['vegetarian', 'vegan', 'glutenFree', 'highProtein', 'dairyFree', 'nutFree', 'halal'];
+const ALL_ALLERGENS: Allergen[] = ['nuts', 'dairy', 'shellfish', 'gluten', 'soy', 'eggs', 'pork'];
 
 const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string }[] = [
   { key: 'system', label: 'System' },
@@ -31,7 +33,11 @@ export default function SettingsScreen() {
     currentUser,
     logout,
     effectiveDietaryTags,
+    effectiveAllergies,
+    effectiveOtherAllergies,
     updateDietaryPreferences,
+    updateAllergies,
+    updateOtherDietary,
     appearanceMode,
     setAppearanceMode,
     highContrastEnabled,
@@ -44,13 +50,26 @@ export default function SettingsScreen() {
   } = useSession();
 
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
+  const router = useRouter();
   const [notifAnnouncements, setNotifAnnouncements] = useState<boolean>(false);
   const [notifNewMenu, setNotifNewMenu] = useState<boolean>(false);
   const [notifDailyReminder, setNotifDailyReminder] = useState<boolean>(false);
   const [notifMealAlerts, setNotifMealAlerts] = useState<boolean>(false);
   const [showQuiz, setShowQuiz] = useState<boolean>(false);
+  const [localDietary, setLocalDietary] = useState<DietaryTag[]>(() => effectiveDietaryTags);
+  const [localAllergies, setLocalAllergies] = useState<Allergen[]>(() => effectiveAllergies);
+  const [otherDietaryText, setOtherDietaryText] = useState<string>(() => (currentUser?.profile?.otherDietaryRestrictions ?? []).join(', '));
+  const [otherAllergiesText, setOtherAllergiesText] = useState<string>(() => (effectiveOtherAllergies ?? []).join(', '));
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
 
-  const dietaryRestrictions = effectiveDietaryTags;
+  useEffect(() => {
+    setLocalDietary(effectiveDietaryTags);
+    setLocalAllergies(effectiveAllergies);
+    setOtherDietaryText((currentUser?.profile?.otherDietaryRestrictions ?? []).join(', '));
+    setOtherAllergiesText((effectiveOtherAllergies ?? []).join(', '));
+  }, [effectiveDietaryTags, effectiveAllergies, effectiveOtherAllergies, currentUser?.profile?.otherDietaryRestrictions]);
+
+  const dietaryRestrictions = localDietary;
 
   const dietarySummary = useMemo(() => {
     if (dietaryRestrictions.length === 0) return 'No preferences set.';
@@ -58,9 +77,21 @@ export default function SettingsScreen() {
   }, [dietaryRestrictions]);
 
   const toggleDietaryTag = (tag: DietaryTag, enabled: boolean) => {
-    const nextTags = enabled ? [...dietaryRestrictions, tag] : dietaryRestrictions.filter((item) => item !== tag);
-    console.log('[Settings] Updating dietary toggle:', tag, 'enabled:', enabled);
-    updateDietaryPreferences(nextTags);
+    setLocalDietary((prev) => (enabled ? [...prev, tag] : prev.filter((item) => item !== tag)));
+  };
+
+  const toggleAllergy = (allergen: Allergen, enabled: boolean) => {
+    setLocalAllergies((prev) => (enabled ? [...prev, allergen] : prev.filter((a) => a !== allergen)));
+  };
+
+  const handleSavePreferences = () => {
+    const otherD = otherDietaryText.trim() ? otherDietaryText.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    const otherA = otherAllergiesText.trim() ? otherAllergiesText.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    updateDietaryPreferences(localDietary);
+    updateOtherDietary(otherD);
+    updateAllergies(localAllergies, otherA.length ? otherA : undefined);
+    setSaveFeedback('Saved');
+    setTimeout(() => setSaveFeedback(null), 2000);
   };
 
   const handleLanguageChange = (lang: string) => {
@@ -180,24 +211,32 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.card}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>DIETARY PREFERENCES</Text>
-          {ALL_DIETARY_TAGS.map((tag, index) => (
-            <View key={tag}>
-              <View style={styles.toggleRow}>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{DIETARY_TAG_EMOJIS[tag]} {DIETARY_TAG_LABELS[tag]}</Text>
-                <Switch
-                  value={hasTag(dietaryRestrictions, tag)}
-                  onValueChange={(value) => toggleDietaryTag(tag, value)}
-                  trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }}
-                  thumbColor="#FFFFFF"
-                  accessibilityLabel={`${DIETARY_TAG_LABELS[tag]} dietary preference`}
-                />
-              </View>
-              {index < ALL_DIETARY_TAGS.length - 1 ? <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} /> : null}
-            </View>
-          ))}
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PREFERENCES & ALLERGIES</Text>
+          <Pressable
+            onPress={() => router.push('/settings/dietary')}
+            style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Edit dietary preferences"
+          >
+            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Dietary preferences</Text>
+          </Pressable>
           <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-          <Pressable onPress={() => setShowQuiz(true)} style={({ pressed }) => [styles.quizRow, pressed && styles.rowPressed]} testID="retake-preferences-quiz-button" accessibilityLabel="Retake Preferences Quiz" accessibilityRole="button">
+          <Pressable
+            onPress={() => router.push('/settings/allergies')}
+            style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Edit allergies"
+          >
+            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Allergies</Text>
+          </Pressable>
+          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+          <Pressable
+            onPress={() => setShowQuiz(true)}
+            style={({ pressed }) => [styles.quizRow, pressed && styles.rowPressed]}
+            testID="retake-preferences-quiz-button"
+            accessibilityLabel="Retake Preferences Quiz"
+            accessibilityRole="button"
+          >
             <View style={styles.quizLabelWrap}>
               <RotateCcw size={16} color={colors.brandPrimary} />
               <Text style={[styles.quizText, { color: colors.brandPrimary }]}>Retake Preferences Quiz</Text>
@@ -365,6 +404,29 @@ const styles = StyleSheet.create({
   quizText: {
     fontSize: 15,
     fontWeight: '600' as const,
+  },
+  subtitleSmall: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  saveButton: {
+    minHeight: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700' as const,
   },
   logoutRow: {
     minHeight: 44,

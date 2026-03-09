@@ -17,15 +17,40 @@ export const SCHOOL_DOMAIN = 'htu.edu';
 export const ADMIN_EMAIL = 'admin@htu.edu';
 export const UNIVERSITY_NAME = 'Huston-Tillotson University';
 
-const nowIsOpen = (mealPeriod: MealPeriod): boolean => {
-  const hour = new Date().getHours();
-  const range = {
-    startHour: mealPeriod === 'breakfast' ? 7 : mealPeriod === 'lunch' ? 11 : 17,
-    endHour: mealPeriod === 'breakfast' ? 10 : mealPeriod === 'lunch' ? 14 : 20,
-  };
-
-  return hour >= range.startHour && hour < range.endHour;
+const nowIsOpen = (mealPeriod: MealPeriod, isWeekend: boolean): boolean => {
+  const d = new Date();
+  const hour = d.getHours() + d.getMinutes() / 60;
+  if (isWeekend) {
+    if (mealPeriod === 'brunch') return hour >= 11 && hour < 13.5;
+    if (mealPeriod === 'dinner') return hour >= 16.5 && hour < 18;
+    return false;
+  }
+  if (mealPeriod === 'breakfast') return hour >= 7 && hour < 9;
+  if (mealPeriod === 'lunch') return hour >= 11 && hour < 13.5;
+  if (mealPeriod === 'dinner') return hour >= 17 && hour < 19;
+  return false;
 };
+
+function getIsWeekend(): boolean {
+  const day = new Date().getDay();
+  return day === 0 || day === 6;
+}
+
+/** Returns today's cafe hours (weekday vs weekend). */
+export function getCafeHoursForToday(): CafeHours[] {
+  const isWeekend = getIsWeekend();
+  if (isWeekend) {
+    return [
+      { mealPeriod: 'brunch', startTime: '11:00 AM', endTime: '1:30 PM', get isOpenNow() { return nowIsOpen('brunch', true); } },
+      { mealPeriod: 'dinner', startTime: '4:30 PM', endTime: '6:00 PM', get isOpenNow() { return nowIsOpen('dinner', true); } },
+    ];
+  }
+  return [
+    { mealPeriod: 'breakfast', startTime: '7:00 AM', endTime: '9:00 AM', get isOpenNow() { return nowIsOpen('breakfast', false); } },
+    { mealPeriod: 'lunch', startTime: '11:00 AM', endTime: '1:30 PM', get isOpenNow() { return nowIsOpen('lunch', false); } },
+    { mealPeriod: 'dinner', startTime: '5:00 PM', endTime: '7:00 PM', get isOpenNow() { return nowIsOpen('dinner', false); } },
+  ];
+}
 
 function makeItem(
   id: string,
@@ -97,6 +122,15 @@ export const sampleMenuItems: MenuItem[] = [
     ['vegan', 'glutenFree'], 'dinner', ['soy'],
     'Broccoli, snap peas, carrots, bell peppers, soy sauce, ginger, garlic, sesame oil, rice.',
     { protein: 8, carbs: 48, fat: 10, fiber: 6 }),
+  // Non-halal examples for presentation (contain pork)
+  makeItem('11', 'Crispy Bacon & Eggs', 'Smoky bacon strips served with scrambled eggs and toast.', 520, '🍽️',
+    ['highProtein'], 'breakfast', ['pork', 'eggs', 'dairy', 'gluten'],
+    'Pork bacon, eggs, butter, milk, toast, salt, pepper.',
+    { protein: 26, carbs: 24, fat: 34, fiber: 2 }),
+  makeItem('12', 'BBQ Pulled Pork Sandwich', 'Slow-cooked pulled pork on a toasted bun with slaw.', 640, '🍽️',
+    [], 'lunch', ['pork', 'gluten'],
+    'Pulled pork, barbecue sauce, brioche bun, cabbage slaw, pickles.',
+    { protein: 32, carbs: 58, fat: 26, fiber: 3 }),
 ];
 
 export const sampleAnnouncements: Announcement[] = [
@@ -116,32 +150,7 @@ export const sampleAnnouncements: Announcement[] = [
   },
 ];
 
-export const sampleCafeHours: CafeHours[] = [
-  {
-    mealPeriod: 'breakfast',
-    startTime: '7:00 AM',
-    endTime: '10:00 AM',
-    get isOpenNow() {
-      return nowIsOpen('breakfast');
-    },
-  },
-  {
-    mealPeriod: 'lunch',
-    startTime: '11:00 AM',
-    endTime: '2:00 PM',
-    get isOpenNow() {
-      return nowIsOpen('lunch');
-    },
-  },
-  {
-    mealPeriod: 'dinner',
-    startTime: '5:00 PM',
-    endTime: '8:00 PM',
-    get isOpenNow() {
-      return nowIsOpen('dinner');
-    },
-  },
-];
+export const sampleCafeHours: CafeHours[] = getCafeHoursForToday();
 
 function createWeeklyItem(id: string, name: string, description: string, calories: number, dietaryTags: DietaryTag[], mealPeriod: MealPeriod): WeeklyMenuItem {
   return { id, name, description, calories, dietaryTags, mealPeriod, emoji: '🍽️' };

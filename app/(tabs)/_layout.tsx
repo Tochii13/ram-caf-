@@ -53,6 +53,7 @@ export default function TabLayout() {
         name="announcements"
         options={{
           title: 'Announcements',
+          tabBarLabel: 'Updates',
           tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />,
         }}
       />

@@ -1,18 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, CheckCircle2 } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import { useSession } from '@/contexts/SessionContext';
-import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, DietaryTag } from '@/types';
+import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, DietaryTag, Allergen, ALLERGEN_LABELS } from '@/types';
 
 const ALL_DIETARY_TAGS: DietaryTag[] = ['vegetarian', 'vegan', 'glutenFree', 'highProtein', 'dairyFree', 'nutFree', 'halal'];
+const ALL_ALLERGENS: Allergen[] = ['nuts', 'dairy', 'shellfish', 'gluten', 'soy', 'eggs', 'pork'];
 
 interface OnboardingFlowProps {
   isRerun?: boolean;
   onComplete?: () => void;
 }
 
-type OnboardingStep = 0 | 1 | 2;
+type OnboardingStep = 0 | 1 | 2 | 3;
 
 function getFirstName(name?: string): string {
   const trimmed = name?.trim() ?? '';
@@ -63,6 +64,9 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const [step, setStep] = useState<OnboardingStep>(isRerun ? 1 : 0);
   const [selectedTags, setSelectedTags] = useState<DietaryTag[]>(currentUser?.profile?.dietaryRestrictions ?? []);
+  const [selectedAllergies, setSelectedAllergies] = useState<Allergen[]>(currentUser?.profile?.allergies ?? []);
+  const [otherAllergiesText, setOtherAllergiesText] = useState<string>(() => (currentUser?.profile?.otherAllergies ?? []).join(', '));
+  const [otherDietaryText, setOtherDietaryText] = useState<string>(() => (currentUser?.profile?.otherDietaryRestrictions ?? []).join(', '));
   const welcomeScale = useRef(new Animated.Value(0.85)).current;
   const finalScale = useRef(new Animated.Value(0.5)).current;
   const finalOpacity = useRef(new Animated.Value(0)).current;
@@ -84,7 +88,7 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
       Animated.spring(welcomeScale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }).start();
     }
 
-    if (step === 2) {
+    if (step === 3) {
       finalScale.setValue(0.5);
       finalOpacity.setValue(0);
       Animated.parallel([
@@ -94,21 +98,26 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
     }
   }, [contentOpacity, contentTranslate, finalOpacity, finalScale, step, welcomeScale]);
 
+  const toggleAllergen = (allergen: Allergen) => {
+    setSelectedAllergies((prev) => (prev.includes(allergen) ? prev.filter((a) => a !== allergen) : [...prev, allergen]));
+  };
+
   const toggleTag = (tag: DietaryTag) => {
     console.log('[Onboarding] Toggling preference:', tag);
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]));
   };
 
   const handleFinish = () => {
-    console.log('[Onboarding] Completing flow. isRerun:', isRerun, 'tags:', selectedTags.join(', ') || 'none');
-    completeOnboarding(selectedTags);
+    const otherA = otherAllergiesText.trim() ? otherAllergiesText.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    const otherD = otherDietaryText.trim() ? otherDietaryText.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    completeOnboarding({ dietaryRestrictions: selectedTags, allergies: selectedAllergies, otherAllergies: otherA.length ? otherA : undefined, otherDietary: otherD.length ? otherD : undefined });
     onComplete?.();
   };
 
   return (
     <View style={[styles.shell, { backgroundColor: colors.backgroundMain }]}>
       <View style={styles.progressDotsRow}>
-        {[0, 1, 2].map((dot) => {
+        {[0, 1, 2, 3].map((dot) => {
           const hidden = isRerun && dot === 0;
           if (hidden) return null;
           return <View key={dot} style={[styles.progressDot, { backgroundColor: colors.borderSubtle }, dot <= step && { backgroundColor: colors.brandPrimary }]} />;
@@ -131,12 +140,26 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
 
         {step === 1 ? (
           <View style={styles.preferencesStep}>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Any dietary preferences?</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>We&apos;ll use this to highlight relevant items on the menu.</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Any dietary preferences or restrictions?</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              We&apos;ll highlight menu items that match and show cautions when items contain ingredients you avoid.
+            </Text>
+            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+              For example: are you vegetarian or vegan, do you avoid gluten, dairy, or nuts, do you keep halal, or prefer higher‑protein options?
+              Turn on anything that should shape your recommendations.
+            </Text>
             <ScrollView style={styles.preferenceScroll} contentContainerStyle={styles.preferenceList} showsVerticalScrollIndicator={false}>
               {ALL_DIETARY_TAGS.map((tag) => (
                 <DietaryOptionRow key={tag} tag={tag} selected={selectedTags.includes(tag)} onPress={() => toggleTag(tag)} colors={colors} />
               ))}
+              <Text style={[styles.optionalLabel, { color: colors.textSecondary }]}>Other (comma-separated)</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle, color: colors.textPrimary }]}
+                placeholder="e.g. low sodium, no pork"
+                placeholderTextColor={colors.textSecondary}
+                value={otherDietaryText}
+                onChangeText={setOtherDietaryText}
+              />
             </ScrollView>
             <Pressable onPress={() => setStep(2)} style={({ pressed }) => [styles.primaryButton, styles.onboardingButtonSpacing, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]} testID="onboarding-next-preferences">
               <Text style={styles.primaryButtonText}>Continue →</Text>
@@ -145,6 +168,48 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
         ) : null}
 
         {step === 2 ? (
+          <View style={styles.preferencesStep}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Any food allergies?</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>We&apos;ll show a caution on menu items that contain these. Select all that apply.</Text>
+            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+              For example: are you allergic to nuts, dairy, eggs, shellfish, gluten, soy, or anything else that could cause a reaction?
+              Turn on anything you need Ram Café to watch out for.
+            </Text>
+            <ScrollView style={styles.preferenceScroll} contentContainerStyle={styles.preferenceList} showsVerticalScrollIndicator={false}>
+              {ALL_ALLERGENS.map((allergen) => (
+                <Pressable
+                  key={allergen}
+                  onPress={() => toggleAllergen(allergen)}
+                  style={[styles.preferenceRow, { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle }, selectedAllergies.includes(allergen) && { borderColor: colors.brandPrimary, borderWidth: 2, backgroundColor: `${colors.brandPrimary}1A` }]}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selectedAllergies.includes(allergen) }}
+                >
+                  <Text style={[styles.preferenceLabel, { color: colors.textPrimary }]}>{ALLERGEN_LABELS[allergen]}</Text>
+                  {selectedAllergies.includes(allergen) ? (
+                    <View style={[styles.checkCircle, { backgroundColor: colors.brandPrimary }]}>
+                      <Check size={14} color="#FFFFFF" />
+                    </View>
+                  ) : (
+                    <View style={[styles.checkCircleEmpty, { borderColor: colors.borderSubtle }]} />
+                  )}
+                </Pressable>
+              ))}
+              <Text style={[styles.optionalLabel, { color: colors.textSecondary }]}>Other allergies (comma-separated)</Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle, color: colors.textPrimary }]}
+                placeholder="e.g. sesame, kiwi"
+                placeholderTextColor={colors.textSecondary}
+                value={otherAllergiesText}
+                onChangeText={setOtherAllergiesText}
+              />
+            </ScrollView>
+            <Pressable onPress={() => setStep(3)} style={({ pressed }) => [styles.primaryButton, styles.onboardingButtonSpacing, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]} testID="onboarding-next-allergies">
+              <Text style={styles.primaryButtonText}>Continue →</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {step === 3 ? (
           <View style={styles.centeredStep}>
             <Animated.View style={{ opacity: finalOpacity, transform: [{ scale: finalScale }] }}>
               <CheckCircle2 size={76} color={colors.accentGreen} />
@@ -184,7 +249,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   preferencesStep: {
-    flex: 0,
+    flex: 1,
+    justifyContent: 'flex-start',
   },
   welcomeEmoji: {
     fontSize: 72,
@@ -202,10 +268,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
     marginTop: 10,
-    marginBottom: 24,
+    marginBottom: 12,
+  },
+  helperText: {
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginHorizontal: 8,
+    marginBottom: 16,
   },
   preferenceScroll: {
     maxHeight: 380,
+    marginTop: 4,
   },
   preferenceList: {
     gap: 10,
@@ -260,5 +334,18 @@ const styles = StyleSheet.create({
   },
   onboardingButtonSpacing: {
     marginTop: 20,
+  },
+  optionalLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
   },
 });

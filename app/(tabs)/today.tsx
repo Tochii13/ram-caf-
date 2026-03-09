@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Search, Star, X } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import Card from '@/components/Card';
@@ -10,17 +11,34 @@ import MenuItemDetailView from '@/components/MenuItemDetailView';
 import { useMenuStore } from '@/contexts/MenuStoreContext';
 import { useRatingsStore } from '@/contexts/RatingsStoreContext';
 import { useSession } from '@/contexts/SessionContext';
-import { sampleAnnouncements, sampleCafeHours } from '@/mocks/data';
-import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, MealPeriod, MEAL_PERIOD_LABELS, MEAL_PERIOD_TIMES, MenuItem } from '@/types';
+import { sampleAnnouncements, getCafeHoursForToday } from '@/mocks/data';
+import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, MealPeriod, MEAL_PERIOD_LABELS, MEAL_PERIOD_TIMES, MEAL_PERIOD_TIMES_WEEKDAY, MEAL_PERIOD_TIMES_WEEKEND, MenuItem } from '@/types';
 
 type FilterOption = 'all' | MealPeriod;
 
-const FILTERS: { key: FilterOption; label: string }[] = [
+const FILTERS_WEEKDAY: { key: FilterOption; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'breakfast', label: 'Breakfast' },
   { key: 'lunch', label: 'Lunch' },
   { key: 'dinner', label: 'Dinner' },
 ];
+
+const FILTERS_WEEKEND: { key: FilterOption; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'brunch', label: 'Brunch' },
+  { key: 'dinner', label: 'Dinner' },
+];
+
+function getFiltersForToday(): { key: FilterOption; label: string }[] {
+  const day = new Date().getDay();
+  return day === 0 || day === 6 ? FILTERS_WEEKEND : FILTERS_WEEKDAY;
+}
+
+function getTimeRangeForPeriod(period: MealPeriod, isWeekend: boolean): string {
+  if (isWeekend && (period === 'brunch' || period === 'dinner')) return MEAL_PERIOD_TIMES_WEEKEND[period].timeRange;
+  if (period in MEAL_PERIOD_TIMES_WEEKDAY) return MEAL_PERIOD_TIMES_WEEKDAY[period as keyof typeof MEAL_PERIOD_TIMES_WEEKDAY].timeRange;
+  return MEAL_PERIOD_TIMES[period].timeRange;
+}
 
 function getGreeting(name: string): string {
   const hour = new Date().getHours();
@@ -54,19 +72,23 @@ function formatCountdownLong(totalMinutes: number): string {
   return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minutes`;
 }
 
-function getMinutesUntil(targetHour: number): number {
+function getMinutesUntil(targetHourDecimal: number): number {
   const now = new Date();
-  const target = new Date(now);
-  target.setHours(targetHour, 0, 0, 0);
-  return Math.max(0, Math.round((target.getTime() - now.getTime()) / 60000));
+  const minsFromMidnight = now.getHours() * 60 + now.getMinutes();
+  const targetMins = Math.floor(targetHourDecimal) * 60 + (targetHourDecimal % 1) * 60;
+  return Math.max(0, Math.round(targetMins - minsFromMidnight));
 }
 
 function getCountdownState(): { message: string; highlight?: string; accessibilityMessage: string } {
-  const hour = new Date().getHours();
-  const periods: MealPeriod[] = ['breakfast', 'lunch', 'dinner'];
+  const d = new Date();
+  const hour = d.getHours() + d.getMinutes() / 60;
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  const periods: MealPeriod[] = isWeekend ? ['brunch', 'dinner'] : ['breakfast', 'lunch', 'dinner'];
+  const times = isWeekend ? MEAL_PERIOD_TIMES_WEEKEND : MEAL_PERIOD_TIMES_WEEKDAY;
 
   for (const period of periods) {
-    const range = MEAL_PERIOD_TIMES[period];
+    const range = times[period as keyof typeof times];
+    if (!range) continue;
     if (hour >= range.startHour && hour < range.endHour) {
       const mins = getMinutesUntil(range.endHour);
       return {
@@ -85,17 +107,29 @@ function getCountdownState(): { message: string; highlight?: string; accessibili
     }
   }
 
+  // All meals closed today — show tomorrow's first meal
+  const tomorrow = new Date(d);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDay = tomorrow.getDay();
+  const isTomorrowWeekend = tomorrowDay === 0 || tomorrowDay === 6;
+  const nextOpen = isTomorrowWeekend ? 'Brunch opens at 11:00 AM' : 'Breakfast opens at 7:00 AM';
   return {
-    message: 'See you tomorrow! Breakfast opens at 7:00 AM',
-    accessibilityMessage: 'All meals are closed for today. Breakfast opens at 7:00 AM tomorrow.',
+    message: `See you tomorrow! ${nextOpen}`,
+    accessibilityMessage: `All meals are closed for today. ${nextOpen} tomorrow.`,
   };
 }
 
 function getUnratedPeriod(ratedPeriods: Set<string>): MealPeriod | null {
   const dateKey = getDateKey(new Date());
-  const hour = new Date().getHours();
-  const candidates: MealPeriod[] = ['dinner', 'lunch', 'breakfast'];
-  return candidates.find((period) => hour >= MEAL_PERIOD_TIMES[period].endHour && !ratedPeriods.has(`${dateKey}-${period}`)) ?? null;
+  const d = new Date();
+  const hour = d.getHours() + d.getMinutes() / 60;
+  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+  const candidates: MealPeriod[] = isWeekend ? ['dinner', 'brunch'] : ['dinner', 'lunch', 'breakfast'];
+  const times = isWeekend ? MEAL_PERIOD_TIMES_WEEKEND : MEAL_PERIOD_TIMES_WEEKDAY;
+  return candidates.find((period) => {
+    const range = times[period as keyof typeof times];
+    return range && hour >= range.endHour && !ratedPeriods.has(`${dateKey}-${period}`);
+  }) ?? null;
 }
 
 function RecommendationCard({ item, colors, highContrast }: { item: MenuItem; colors: ReturnType<typeof getColors>; highContrast: boolean }) {
@@ -191,7 +225,8 @@ function RatingSheetView({
 
 export default function TodayScreen() {
   const router = useRouter();
-  const { currentUser, effectiveDietaryTags, resolvedColorScheme, highContrastEnabled } = useSession();
+  const insets = useSafeAreaInsets();
+  const { currentUser, effectiveDietaryTags, resolvedColorScheme, highContrastEnabled, textSizeMultiplier } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const { menuItems } = useMenuStore();
   const { submitRating, ratedPeriods, markPeriodRated } = useRatingsStore();
@@ -202,16 +237,30 @@ export default function TodayScreen() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const firstAnnouncement = sampleAnnouncements[0];
   const firstName = currentUser?.name?.trim().split(' ')[0] ?? 'Student';
+  const cafeHours = getCafeHoursForToday();
+  const isWeekend = useMemo(() => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6;
+  }, []);
+  const filtersForToday = useMemo(() => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6 ? FILTERS_WEEKEND : FILTERS_WEEKDAY;
+  }, []);
 
   const isSearching = searchQuery.trim().length > 0;
 
-  const visiblePeriods = useMemo<MealPeriod[]>(() => (filter === 'all' ? ['breakfast', 'lunch', 'dinner'] : [filter]), [filter]);
+  const visiblePeriods = useMemo<MealPeriod[]>(() => {
+    if (filter === 'all') return isWeekend ? ['brunch', 'dinner'] : ['breakfast', 'lunch', 'dinner'];
+    if (filter === 'brunch') return ['breakfast', 'lunch'];
+    return [filter];
+  }, [filter, isWeekend]);
 
   const menuByPeriod = useMemo(() => {
-    const map: Record<MealPeriod, MenuItem[]> = { breakfast: [], lunch: [], dinner: [] };
+    const map: Record<string, MenuItem[]> = { breakfast: [], lunch: [], dinner: [], brunch: [] };
     menuItems.forEach((item) => map[item.mealPeriod].push(item));
+    if (isWeekend) map.brunch = [...(map.breakfast ?? []), ...(map.lunch ?? [])];
     return map;
-  }, [menuItems]);
+  }, [menuItems, isWeekend]);
 
   const searchResults = useMemo(() => {
     if (!isSearching) return [];
@@ -224,11 +273,12 @@ export default function TodayScreen() {
     return menuItems.filter((item) => item.dietaryTags.some((tag) => effectiveDietaryTags.includes(tag))).slice(0, 3);
   }, [effectiveDietaryTags, menuItems]);
 
-  const isAnyPeriodOpen = sampleCafeHours.some((item) => item.isOpenNow);
+  const isAnyPeriodOpen = cafeHours.some((item) => item.isOpenNow);
   const unratedPeriod = useMemo(() => getUnratedPeriod(ratedPeriods), [ratedPeriods]);
 
   const ratingItems = useMemo(() => {
     if (!unratedPeriod) return [];
+    if (unratedPeriod === 'brunch') return menuItems.filter((item) => item.mealPeriod === 'breakfast' || item.mealPeriod === 'lunch');
     return menuItems.filter((item) => item.mealPeriod === unratedPeriod);
   }, [menuItems, unratedPeriod]);
 
@@ -266,10 +316,10 @@ export default function TodayScreen() {
 
   return (
     <>
-      <ScrollView style={[styles.scroll, { backgroundColor: colors.backgroundMain }]} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[styles.scroll, { backgroundColor: colors.backgroundMain }]} contentContainerStyle={[styles.scrollContent, { paddingTop: 16 + Math.max(insets.top, 12) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.greetingSection}>
-          <Text style={[styles.greeting, { color: colors.textPrimary }]}>{getGreeting(firstName)}</Text>
-          <Text style={[styles.dateSubline, { color: colors.textSecondary }]}>Here&apos;s today&apos;s menu for {getDayName()}</Text>
+          <Text style={[styles.greeting, { color: colors.textPrimary, fontSize: 32 * textSizeMultiplier }]}>{getGreeting(firstName)}</Text>
+          <Text style={[styles.dateSubline, { color: colors.textSecondary, fontSize: 15 * textSizeMultiplier }]}>Here&apos;s today&apos;s menu for {getDayName()}</Text>
         </View>
 
         <View style={[styles.searchBar, { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle }]}>
@@ -334,7 +384,7 @@ export default function TodayScreen() {
                   </View>
                 ) : null}
               </View>
-              {sampleCafeHours.map((period) => (
+              {cafeHours.map((period) => (
                 <View
                   key={period.mealPeriod}
                   style={styles.hourRow}
@@ -395,9 +445,9 @@ export default function TodayScreen() {
               </View>
             ) : null}
 
-            <Text style={[styles.menuSectionTitle, { color: colors.textPrimary }]}>Today&apos;s Menu</Text>
+            <Text style={[styles.menuSectionTitle, { color: colors.textPrimary, fontSize: 20 * textSizeMultiplier }]}>Today&apos;s Menu</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
-              {FILTERS.map((f) => {
+              {filtersForToday.map((f) => {
                 const selected = filter === f.key;
                 return (
                   <Pressable
@@ -423,7 +473,7 @@ export default function TodayScreen() {
                 <View key={period} style={styles.periodSection}>
                   <View style={styles.periodHeader}>
                     <Text style={[styles.periodName, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
-                    <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{MEAL_PERIOD_TIMES[period].timeRange}</Text>
+                    <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{getTimeRangeForPeriod(period, isWeekend)}</Text>
                   </View>
                   {items.map((item) => (
                     <MenuItemCard key={item.id} item={item} onPress={() => setSelectedItem(item)} />

@@ -1,8 +1,8 @@
-export type MealPeriod = 'breakfast' | 'lunch' | 'dinner';
+export type MealPeriod = 'breakfast' | 'lunch' | 'dinner' | 'brunch';
 
 export type DietaryTag = 'vegetarian' | 'vegan' | 'glutenFree' | 'highProtein' | 'dairyFree' | 'nutFree' | 'halal';
 
-export type Allergen = 'nuts' | 'dairy' | 'shellfish' | 'gluten' | 'soy' | 'eggs';
+export type Allergen = 'nuts' | 'dairy' | 'shellfish' | 'gluten' | 'soy' | 'eggs' | 'pork';
 
 export type AvailabilityStatus = 'available' | 'limited' | 'soldOut';
 
@@ -35,18 +35,32 @@ export const ALLERGEN_LABELS: Record<Allergen, string> = {
   gluten: 'Gluten',
   soy: 'Soy',
   eggs: 'Eggs',
+  pork: 'Pork',
 };
 
 export const MEAL_PERIOD_LABELS: Record<MealPeriod, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
   dinner: 'Dinner',
+  brunch: 'Brunch',
+};
+
+/** Weekday (Mon–Fri): breakfast 7–9, lunch 11–1:30pm, dinner 5–7pm */
+export const MEAL_PERIOD_TIMES_WEEKDAY: Record<Exclude<MealPeriod, 'brunch'>, { timeRange: string; startHour: number; endHour: number }> = {
+  breakfast: { timeRange: '7:00 AM – 9:00 AM', startHour: 7, endHour: 9 },
+  lunch: { timeRange: '11:00 AM – 1:30 PM', startHour: 11, endHour: 13.5 },
+  dinner: { timeRange: '5:00 PM – 7:00 PM', startHour: 17, endHour: 19 },
+};
+
+/** Weekend (Sat–Sun): brunch 11–1:30pm, dinner 4:30–6pm */
+export const MEAL_PERIOD_TIMES_WEEKEND: Record<Exclude<MealPeriod, 'breakfast' | 'lunch'>, { timeRange: string; startHour: number; endHour: number }> = {
+  brunch: { timeRange: '11:00 AM – 1:30 PM', startHour: 11, endHour: 13.5 },
+  dinner: { timeRange: '4:30 PM – 6:00 PM', startHour: 16.5, endHour: 18 },
 };
 
 export const MEAL_PERIOD_TIMES: Record<MealPeriod, { timeRange: string; startHour: number; endHour: number }> = {
-  breakfast: { timeRange: '7:00 AM – 10:00 AM', startHour: 7, endHour: 10 },
-  lunch: { timeRange: '11:00 AM – 2:00 PM', startHour: 11, endHour: 14 },
-  dinner: { timeRange: '5:00 PM – 8:00 PM', startHour: 17, endHour: 20 },
+  ...MEAL_PERIOD_TIMES_WEEKDAY,
+  brunch: MEAL_PERIOD_TIMES_WEEKEND.brunch,
 };
 
 export const AVAILABILITY_CONFIG: Record<AvailabilityStatus, { icon: string; label: string; color: string }> = {
@@ -96,6 +110,9 @@ export type UserRole = 'student' | 'admin';
 
 export interface StudentProfile {
   dietaryRestrictions: DietaryTag[];
+  otherDietaryRestrictions?: string[];
+  allergies: Allergen[];
+  otherAllergies?: string[];
   hasCompletedOnboarding: boolean;
 }
 

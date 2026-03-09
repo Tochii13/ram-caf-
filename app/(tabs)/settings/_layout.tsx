@@ -13,6 +13,22 @@ export default function SettingsLayout() {
           headerTitleStyle: { color: Colors.textPrimary, fontWeight: '600' },
         }}
       />
+      <Stack.Screen
+        name="dietary"
+        options={{
+          title: 'Dietary Preferences',
+          headerStyle: { backgroundColor: Colors.backgroundMain },
+          headerTitleStyle: { color: Colors.textPrimary, fontWeight: '600' },
+        }}
+      />
+      <Stack.Screen
+        name="allergies"
+        options={{
+          title: 'Allergies',
+          headerStyle: { backgroundColor: Colors.backgroundMain },
+          headerTitleStyle: { color: Colors.textPrimary, fontWeight: '600' },
+        }}
+      />
     </Stack>
   );
 }

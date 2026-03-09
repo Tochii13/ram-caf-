@@ -30,15 +30,19 @@ function getConflictingAllergens(tags: DietaryTag[], allergens: Allergen[]): All
   if (tags.includes('vegetarian') && allergens.includes('shellfish')) conflicts.add('shellfish');
   if (tags.includes('dairyFree') && allergens.includes('dairy')) conflicts.add('dairy');
   if (tags.includes('nutFree') && allergens.includes('nuts')) conflicts.add('nuts');
+   if (tags.includes('halal') && allergens.includes('pork')) conflicts.add('pork');
   return Array.from(conflicts);
 }
 
 export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardProps) {
-  const { effectiveDietaryTags, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { effectiveDietaryTags, effectiveAllergies, resolvedColorScheme, highContrastEnabled } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
 
   const conflicts = useMemo(() => getConflictingAllergens(effectiveDietaryTags, item.allergens), [effectiveDietaryTags, item.allergens]);
-  const warningText = useMemo(() => conflicts.map((allergen) => ALLERGEN_LABELS[allergen]).join(', '), [conflicts]);
+  const allergyMatch = useMemo(() => item.allergens.filter((a) => effectiveAllergies.includes(a)), [item.allergens, effectiveAllergies]);
+  const allWarnings = useMemo(() => [...new Set([...conflicts, ...allergyMatch])], [conflicts, allergyMatch]);
+  const warningText = useMemo(() => allWarnings.map((allergen) => ALLERGEN_LABELS[allergen]).join(', '), [allWarnings]);
+  const showCaution = allWarnings.length > 0;
   const isSoldOut = item.availability === 'soldOut';
   const availConfig = AVAILABILITY_CONFIG[item.availability];
 
@@ -52,12 +56,12 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
 
   const accessibilityHint = useMemo(() => {
     const parts: string[] = [];
-    if (conflicts.length > 0) {
-      parts.push(`Contains ${warningText}.`);
+    if (showCaution) {
+      parts.push(`Caution: contains ${warningText}.`);
     }
     parts.push('Tap to view details.');
     return parts.join(' ');
-  }, [conflicts.length, warningText]);
+  }, [showCaution, warningText]);
 
   const content = (
     <Card style={[styles.cardPadding, isSoldOut && styles.soldOutCard]}>
@@ -92,10 +96,10 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
               </View>
             ))}
           </FlowTagList>
-          {conflicts.length > 0 ? (
+          {showCaution ? (
             <View style={styles.warningRow}>
               <AlertTriangle size={13} color="#E67E22" />
-              <Text style={[styles.warningText, highContrastEnabled && styles.warningTextHighContrast]}>Contains {warningText}</Text>
+              <Text style={[styles.warningText, highContrastEnabled && styles.warningTextHighContrast]}>⚠️Caution: contains {warningText}</Text>
             </View>
           ) : null}
         </View>

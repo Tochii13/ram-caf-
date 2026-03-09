@@ -1,14 +1,55 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getColors } from '@/constants/colors';
 import Card from '@/components/Card';
 import FlowTagList from '@/components/FlowTagList';
 import { useMenuStore } from '@/contexts/MenuStoreContext';
 import { useSession } from '@/contexts/SessionContext';
-import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, MealPeriod, MEAL_PERIOD_LABELS, MEAL_PERIOD_TIMES, WeeklyMenuItem } from '@/types';
+import {
+  ALLERGEN_LABELS,
+  Allergen,
+  DIETARY_TAG_EMOJIS,
+  DIETARY_TAG_LABELS,
+  MealPeriod,
+  MEAL_PERIOD_LABELS,
+  MEAL_PERIOD_TIMES,
+  MEAL_PERIOD_TIMES_WEEKDAY,
+  MEAL_PERIOD_TIMES_WEEKEND,
+  MenuItem,
+  WeeklyMenuItem,
+} from '@/types';
 
-function WeeklyMenuItemRow({ item, colors, highContrast }: { item: WeeklyMenuItem; colors: ReturnType<typeof getColors>; highContrast: boolean }) {
+function getTimeRangeForPeriod(period: MealPeriod, isWeekend: boolean): string {
+  if (isWeekend && (period === 'brunch' || period === 'dinner')) return MEAL_PERIOD_TIMES_WEEKEND[period].timeRange;
+  if (period in MEAL_PERIOD_TIMES_WEEKDAY) return MEAL_PERIOD_TIMES_WEEKDAY[period as keyof typeof MEAL_PERIOD_TIMES_WEEKDAY].timeRange;
+  return MEAL_PERIOD_TIMES[period].timeRange;
+}
+
+function WeeklyMenuItemRow({
+  item,
+  colors,
+  highContrast,
+  allergens,
+}: {
+  item: WeeklyMenuItem;
+  colors: ReturnType<typeof getColors>;
+  highContrast: boolean;
+  allergens?: Allergen[];
+}) {
+  const { effectiveAllergies } = useSession();
+
+  const warningAllergens = useMemo<Allergen[]>(() => {
+    if (!allergens || allergens.length === 0 || effectiveAllergies.length === 0) return [];
+    return allergens.filter((a) => effectiveAllergies.includes(a));
+  }, [allergens, effectiveAllergies]);
+
+  const warningText = useMemo(
+    () => warningAllergens.map((a) => ALLERGEN_LABELS[a]).join(', '),
+    [warningAllergens],
+  );
+
+  const showCaution = warningAllergens.length > 0;
+
   return (
     <View
       style={styles.menuRow}
@@ -46,6 +87,18 @@ function WeeklyMenuItemRow({ item, colors, highContrast }: { item: WeeklyMenuIte
               ))}
             </FlowTagList>
           ) : null}
+          {showCaution ? (
+            <View style={styles.menuWarningRow}>
+              <Text
+                style={[
+                  styles.menuWarningText,
+                  highContrast && styles.menuWarningTextHighContrast,
+                ]}
+              >
+                ⚠️ Caution: contains {warningText}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>
@@ -53,13 +106,18 @@ function WeeklyMenuItemRow({ item, colors, highContrast }: { item: WeeklyMenuIte
 }
 
 export default function WeeklyScreen() {
-  const { weeklyDays } = useMenuStore();
+  const { weeklyDays, menuItems } = useMenuStore();
   const { resolvedColorScheme, highContrastEnabled } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const scrollRef = useRef<ScrollView>(null);
+
+  const baseItemsByName = useMemo(() => {
+    const map: Record<string, MenuItem> = {};
+    menuItems.forEach((item) => {
+      map[item.name.toLowerCase()] = item;
+    });
+    return map;
+  }, [menuItems]);
 
   useEffect(() => {
     const weekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
@@ -69,105 +127,94 @@ export default function WeeklyScreen() {
 
   const selectedDay = weeklyDays[selectedIndex] ?? weeklyDays[0];
 
-  useEffect(() => {
-    translateX.setValue(18);
-    opacity.setValue(0);
-    Animated.parallel([
-      Animated.timing(translateX, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-    ]).start();
-  }, [opacity, selectedIndex, translateX]);
-
-  const itemsByPeriod = useMemo(() => {
-    const map: Record<MealPeriod, WeeklyMenuItem[]> = { breakfast: [], lunch: [], dinner: [] };
-    selectedDay?.items.forEach((item) => {
-      map[item.mealPeriod].push(item);
-    });
-    return map;
-  }, [selectedDay]);
-
-  const goToPrev = () => {
-    if (selectedIndex > 0) setSelectedIndex(selectedIndex - 1);
-  };
-
-  const goToNext = () => {
-    if (selectedIndex < weeklyDays.length - 1) setSelectedIndex(selectedIndex + 1);
-  };
-
   return (
     <View style={[styles.screen, { backgroundColor: colors.backgroundMain }]}>
-      <View style={styles.dayPickerContainer}>
-        <Pressable
-          onPress={goToPrev}
-          style={[styles.arrowButton, { opacity: selectedIndex === 0 ? 0.3 : 1 }]}
-          disabled={selectedIndex === 0}
-          accessibilityLabel="Previous day"
-          accessibilityRole="button"
-          hitSlop={8}
-        >
-          <ChevronLeft size={22} color={colors.textPrimary} />
-        </Pressable>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dayPickerRow}
-          style={styles.dayPickerScroll}
-        >
-          {weeklyDays.map((day, index) => {
-            const selected = index === selectedIndex;
-            return (
-              <Pressable
-                key={day.id}
-                onPress={() => setSelectedIndex(index)}
-                style={[styles.dayChip, selected && { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary }, !selected && { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle }]}
-                testID={`weekly-day-${day.weekday.toLowerCase()}`}
-                accessibilityLabel={`${day.weekday}, ${day.dateLabel}`}
-                accessibilityHint={selected ? 'Currently selected.' : `Tap to view ${day.weekday} menu.`}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.dayChipWeekday, { color: selected ? '#FFFFFF' : colors.textPrimary }]}>{day.weekday.slice(0, 3)}</Text>
-                <Text style={[styles.dayChipDate, { color: selected ? '#FFFFFF' : colors.textPrimary }]}>{day.dateLabel.split(' ')[1]}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-        <Pressable
-          onPress={goToNext}
-          style={[styles.arrowButton, { opacity: selectedIndex === weeklyDays.length - 1 ? 0.3 : 1 }]}
-          disabled={selectedIndex === weeklyDays.length - 1}
-          accessibilityLabel="Next day"
-          accessibilityRole="button"
-          hitSlop={8}
-        >
-          <ChevronRight size={22} color={colors.textPrimary} />
-        </Pressable>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dayStripContent}
+        style={styles.dayStrip}
+      >
+        {weeklyDays.map((day, index) => {
+          const selected = index === selectedIndex;
+          const dateNum = day.dateLabel.split(' ')[1] ?? '';
+          return (
+            <Pressable
+              key={day.id}
+              onPress={() => setSelectedIndex(index)}
+              style={[styles.dayCardTop, { backgroundColor: colors.backgroundCard }]}
+              accessibilityLabel={`${day.weekday}, ${day.dateLabel}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+            >
+              <Text style={[styles.dayCardTopWeekday, { color: selected ? colors.brandPrimary : colors.textSecondary }]}>
+                {day.weekday.slice(0, 3).toUpperCase()}
+              </Text>
+              <View style={[styles.dayCardTopDateWrap, selected && { backgroundColor: colors.brandPrimary }]}>
+                <Text style={[styles.dayCardTopDate, { color: selected ? '#FFFFFF' : colors.textPrimary }]}>{dateNum}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View style={{ opacity, transform: [{ translateX }] }}>
-          {(['breakfast', 'lunch', 'dinner'] as MealPeriod[]).map((period) => (
-            <Card key={period} style={styles.periodCard}>
-              <View style={[styles.periodTop, { backgroundColor: colors.surfaceTimeBlock }]}>
-                <Text style={[styles.periodTitle, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
-                <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{MEAL_PERIOD_TIMES[period].timeRange}</Text>
-              </View>
-              <View style={[styles.periodBody, { backgroundColor: colors.backgroundCard }]}>
-                {itemsByPeriod[period].map((item, index) => (
-                  <View key={item.id} style={[styles.periodRowWrap, index < itemsByPeriod[period].length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }]}>
-                    <WeeklyMenuItemRow item={item} colors={colors} highContrast={highContrastEnabled} />
-                  </View>
-                ))}
-                {itemsByPeriod[period].length === 0 ? (
-                  <View style={styles.periodRowWrap}>
-                    <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>No items for this period.</Text>
-                  </View>
-                ) : null}
-              </View>
-            </Card>
-          ))}
-        </Animated.View>
+        {selectedDay ? (() => {
+          const isWeekendDay = ['Saturday', 'Sunday'].includes(selectedDay.weekday);
+          const periods = isWeekendDay ? (['brunch', 'dinner'] as const) : (['breakfast', 'lunch', 'dinner'] as const);
+          const dayItemsByPeriod: Record<string, WeeklyMenuItem[]> = { breakfast: [], lunch: [], dinner: [], brunch: [] };
+          selectedDay.items.forEach((item) => dayItemsByPeriod[item.mealPeriod].push(item));
+          if (isWeekendDay) dayItemsByPeriod.brunch = [...dayItemsByPeriod.breakfast, ...dayItemsByPeriod.lunch];
+          return (
+            <>
+              <Text style={[styles.weekTitle, { color: colors.textSecondary }]}>{selectedDay.weekday}, {selectedDay.dateLabel}</Text>
+              {periods.map((period) => {
+                const items = dayItemsByPeriod[period] ?? [];
+                const timeRange = getTimeRangeForPeriod(period, isWeekendDay);
+                return (
+                  <Card key={period} style={styles.periodCard}>
+                    <View style={[styles.periodTop, { backgroundColor: colors.surfaceTimeBlock }]}>
+                      <Text style={[styles.periodTitle, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
+                      <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{timeRange}</Text>
+                    </View>
+                    <View style={styles.periodBody}>
+                      {items.map((item, i) => {
+                        const base = baseItemsByName[item.name.toLowerCase()];
+                        return (
+                          <View
+                            key={item.id}
+                            style={[
+                              styles.periodRowWrap,
+                              i < items.length - 1 && {
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.borderSubtle,
+                              },
+                            ]}
+                          >
+                            <WeeklyMenuItemRow
+                              item={item}
+                              colors={colors}
+                              highContrast={highContrastEnabled}
+                              allergens={base?.allergens}
+                            />
+                          </View>
+                        );
+                      })}
+                      {items.length === 0 ? (
+                        <View style={styles.periodRowWrap}>
+                          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>No items for this period.</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </Card>
+                );
+              })}
+              <View style={styles.bottomPad} />
+            </>
+          );
+        })() : (
+          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>Select a day above.</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -177,6 +224,42 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  // New top day strip (SUN 8, MON 9, etc.)
+  dayStrip: {
+    flexGrow: 0,
+  },
+  dayStripContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    gap: 8,
+  },
+  dayCardTop: {
+    minWidth: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  dayCardTopWeekday: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 0.3,
+  },
+  dayCardTopDateWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  dayCardTopDate: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  // Old picker styles (no longer used, safe to keep)
   dayPickerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -221,6 +304,69 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 8,
     paddingBottom: 24,
+  },
+  weekTitle: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  dayCard: {
+    borderRadius: 12,
+    borderWidth: 2,
+    marginBottom: 12,
+    overflow: 'hidden' as const,
+  },
+  dayCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  dayCardWeekday: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+  },
+  dayCardDate: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+  },
+  dayCardBadge: {
+    marginLeft: 'auto' as const,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  dayCardBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  dayCardBody: {
+    paddingHorizontal: 0,
+    paddingBottom: 12,
+  },
+  dayCardPeriod: {
+    marginTop: 0,
+  },
+  dayCardPeriodHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  dayCardPreview: {
+    fontSize: 13,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+  bottomPad: {
+    height: 24,
   },
   periodCard: {
     marginBottom: 14,
@@ -300,5 +446,17 @@ const styles = StyleSheet.create({
   tagPillText: {
     fontSize: 11,
     fontWeight: '500' as const,
+  },
+  menuWarningRow: {
+    marginTop: 8,
+  },
+  menuWarningText: {
+    fontSize: 11,
+    color: '#E67E22',
+    fontWeight: '600' as const,
+  },
+  menuWarningTextHighContrast: {
+    fontSize: 12,
+    fontWeight: '700' as const,
   },
 });
