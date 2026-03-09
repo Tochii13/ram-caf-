@@ -1,16 +1,20 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import Colors from '@/constants/colors';
+import { getColors } from '@/constants/colors';
+import { useSession } from '@/contexts/SessionContext';
 
 export default function WeeklyLayout() {
+  const { resolvedColorScheme, highContrastEnabled } = useSession();
+  const colors = getColors(resolvedColorScheme, highContrastEnabled);
+
   return (
     <Stack>
       <Stack.Screen
         name="index"
         options={{
           title: 'Weekly Menu',
-          headerStyle: { backgroundColor: Colors.backgroundMain },
-          headerTitleStyle: { color: Colors.textPrimary, fontWeight: '600' },
+          headerStyle: { backgroundColor: colors.backgroundMain },
+          headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
       />
     </Stack>

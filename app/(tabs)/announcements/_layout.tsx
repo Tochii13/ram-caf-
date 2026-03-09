@@ -1,8 +1,12 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import Colors from '@/constants/colors';
+import { getColors } from '@/constants/colors';
+import { useSession } from '@/contexts/SessionContext';
 
 export default function AnnouncementsLayout() {
+  const { resolvedColorScheme, highContrastEnabled } = useSession();
+  const colors = getColors(resolvedColorScheme, highContrastEnabled);
+
   return (
     <Stack>
       <Stack.Screen
@@ -10,8 +14,8 @@ export default function AnnouncementsLayout() {
         options={{
           title: 'Announcements',
           headerLargeTitle: true,
-          headerStyle: { backgroundColor: Colors.backgroundMain },
-          headerTitleStyle: { color: Colors.textPrimary, fontWeight: '600' },
+          headerStyle: { backgroundColor: colors.backgroundMain },
+          headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
       />
     </Stack>

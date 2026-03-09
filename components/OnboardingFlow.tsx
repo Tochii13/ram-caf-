@@ -114,8 +114,10 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
     onComplete?.();
   };
 
+  const isCenteredStep = step === 0 || step === 3;
+
   return (
-    <View style={[styles.shell, { backgroundColor: colors.backgroundMain }]}>
+    <View style={[styles.shell, { backgroundColor: colors.backgroundMain, justifyContent: isCenteredStep ? 'center' : 'flex-start' }]}>
       <View style={styles.progressDotsRow}>
         {[0, 1, 2, 3].map((dot) => {
           const hidden = isRerun && dot === 0;
@@ -124,7 +126,7 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
         })}
       </View>
 
-      <Animated.View style={[styles.card, { opacity: contentOpacity, transform: [{ translateX: contentTranslate }] }]}>
+      <Animated.View style={[styles.card, styles.cardFlex, { opacity: contentOpacity, transform: [{ translateX: contentTranslate }] }]}>
         {step === 0 ? (
           <View style={styles.centeredStep}>
             <Animated.View style={{ transform: [{ scale: welcomeScale }] }}>
@@ -245,6 +247,10 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   card: {},
+  cardFlex: {
+    flex: 1,
+    minHeight: 0,
+  },
   centeredStep: {
     alignItems: 'center',
   },
@@ -278,7 +284,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   preferenceScroll: {
-    maxHeight: 380,
+    flex: 1,
+    minHeight: 200,
     marginTop: 4,
   },
   preferenceList: {

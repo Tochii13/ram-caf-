@@ -22,6 +22,7 @@ const LANGUAGE_OPTIONS = [
   { key: 'en', label: 'English' },
   { key: 'es', label: 'Spanish' },
   { key: 'fr', label: 'French' },
+  { key: 'ne', label: 'Nepali' },
 ];
 
 function hasTag(tags: DietaryTag[], tag: DietaryTag): boolean {
@@ -96,7 +97,7 @@ export default function SettingsScreen() {
 
   const handleLanguageChange = (lang: string) => {
     if (lang !== 'en') {
-      Alert.alert('Coming Soon', 'Additional languages coming soon. The app currently supports English.');
+      Alert.alert('Coming Soon', 'Spanish, French, and Nepali are coming soon. The app currently supports English.');
       return;
     }
     setAppLanguage(lang);

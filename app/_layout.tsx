@@ -1,16 +1,22 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { InventoryStoreProvider } from '@/contexts/InventoryStoreContext';
 import { MenuStoreProvider } from '@/contexts/MenuStoreContext';
 import { RatingsStoreProvider } from '@/contexts/RatingsStoreContext';
-import { SessionProvider } from '@/contexts/SessionContext';
+import { SessionProvider, useSession } from '@/contexts/SessionContext';
 
 void SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+function StatusBarStyle() {
+  const { resolvedColorScheme } = useSession();
+  return <StatusBar style={resolvedColorScheme === 'dark' ? 'light' : 'dark'} />;
+}
 
 function RootLayoutNav() {
   return (
@@ -33,6 +39,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SessionProvider>
+          <StatusBarStyle />
           <MenuStoreProvider>
             <RatingsStoreProvider>
               <InventoryStoreProvider>
