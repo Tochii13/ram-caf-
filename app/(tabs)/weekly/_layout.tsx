@@ -13,6 +13,7 @@ export default function WeeklyLayout() {
         name="index"
         options={{
           title: 'Weekly Menu',
+          contentStyle: { backgroundColor: colors.backgroundMain },
           headerStyle: { backgroundColor: colors.backgroundMain },
           headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}

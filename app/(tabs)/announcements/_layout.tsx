@@ -14,7 +14,9 @@ export default function AnnouncementsLayout() {
         options={{
           title: 'Announcements',
           headerLargeTitle: true,
+          contentStyle: { backgroundColor: colors.backgroundMain },
           headerStyle: { backgroundColor: colors.backgroundMain },
+          headerLargeTitleStyle: { color: colors.textPrimary },
           headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
       />

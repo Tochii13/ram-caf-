@@ -793,7 +793,7 @@ struct MenuItemCardSwift: View {
                         }
                     }
                     if !conflictAllergens.isEmpty {
-                        Text("⚠️ Caution: contains \(warningText)")
+                        Text("Caution: contains \(warningText)")
                             .font(.caption)
                             .foregroundColor(.orange)
                             .fontWeight(.semibold)

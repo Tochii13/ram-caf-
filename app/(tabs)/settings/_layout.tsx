@@ -13,6 +13,7 @@ export default function SettingsLayout() {
         name="index"
         options={{
           title: 'Settings',
+          contentStyle: { backgroundColor: colors.backgroundMain },
           headerStyle: { backgroundColor: colors.backgroundMain },
           headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
@@ -21,6 +22,7 @@ export default function SettingsLayout() {
         name="dietary"
         options={{
           title: 'Dietary Preferences',
+          contentStyle: { backgroundColor: colors.backgroundMain },
           headerStyle: { backgroundColor: colors.backgroundMain },
           headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
@@ -29,6 +31,7 @@ export default function SettingsLayout() {
         name="allergies"
         options={{
           title: 'Allergies',
+          contentStyle: { backgroundColor: colors.backgroundMain },
           headerStyle: { backgroundColor: colors.backgroundMain },
           headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
