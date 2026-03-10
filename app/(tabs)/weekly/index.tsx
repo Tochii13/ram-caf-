@@ -296,7 +296,6 @@ const styles = StyleSheet.create({
   },
   dayStrip: {
     flex: 1,
-    flexGrow: 0,
   },
   dayStripContent: {
     flexDirection: 'row',

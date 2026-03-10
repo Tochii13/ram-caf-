@@ -138,15 +138,22 @@ export const sampleAnnouncements: Announcement[] = [
     id: 'a1',
     title: 'Extended Hours This Week',
     content: 'The Main Cafeteria will have extended dinner hours until 9 PM during finals week.',
-    date: new Date('2026-01-25T12:00:00'),
-    formattedDate: 'Jan 25',
+    date: new Date('2026-03-14T12:00:00'),
+    formattedDate: 'Mar 14',
   },
   {
     id: 'a2',
     title: 'New Menu Items',
     content: 'Try our new plant-based options available starting Monday!',
-    date: new Date('2026-01-24T12:00:00'),
-    formattedDate: 'Jan 24',
+    date: new Date('2026-03-13T12:00:00'),
+    formattedDate: 'Mar 13',
+  },
+  {
+    id: 'a3',
+    title: 'Spring Break Hours',
+    content: 'Ram Café will operate on reduced hours during spring break. Check the weekly menu for details.',
+    date: new Date('2026-03-12T12:00:00'),
+    formattedDate: 'Mar 12',
   },
 ];
 
@@ -159,8 +166,8 @@ function createWeeklyItem(id: string, name: string, description: string, calorie
 export const initialWeeklyMenu: WeeklyDay[] = [
   {
     id: 'wd-1',
-    weekday: 'Monday',
-    dateLabel: 'Feb 23',
+    weekday: 'Wednesday',
+    dateLabel: 'Mar 11',
     items: [
       createWeeklyItem('wd-1-b1', 'Scrambled Eggs', 'Fluffy scrambled eggs with chives.', 310, ['glutenFree', 'highProtein'], 'breakfast'),
       createWeeklyItem('wd-1-b2', 'Fluffy Pancakes', 'Light and fluffy pancakes served with maple syrup.', 420, ['vegetarian'], 'breakfast'),
@@ -172,8 +179,8 @@ export const initialWeeklyMenu: WeeklyDay[] = [
   },
   {
     id: 'wd-2',
-    weekday: 'Tuesday',
-    dateLabel: 'Feb 24',
+    weekday: 'Thursday',
+    dateLabel: 'Mar 12',
     items: [
       createWeeklyItem('wd-2-b1', 'Overnight Oats', 'Creamy oats topped with fresh berries.', 290, ['vegan', 'highProtein'], 'breakfast'),
       createWeeklyItem('wd-2-b2', 'Veggie Omelette', 'Three-egg omelette packed with fresh vegetables.', 340, ['vegetarian', 'glutenFree'], 'breakfast'),
@@ -185,8 +192,8 @@ export const initialWeeklyMenu: WeeklyDay[] = [
   },
   {
     id: 'wd-3',
-    weekday: 'Wednesday',
-    dateLabel: 'Feb 25',
+    weekday: 'Friday',
+    dateLabel: 'Mar 13',
     items: [
       createWeeklyItem('wd-3-b1', 'Fluffy Pancakes', 'Light and fluffy pancakes served with maple syrup.', 420, ['vegetarian'], 'breakfast'),
       createWeeklyItem('wd-3-b2', 'Overnight Oats', 'Creamy oats topped with fresh berries.', 290, ['vegan', 'highProtein'], 'breakfast'),
@@ -198,8 +205,8 @@ export const initialWeeklyMenu: WeeklyDay[] = [
   },
   {
     id: 'wd-4',
-    weekday: 'Thursday',
-    dateLabel: 'Feb 26',
+    weekday: 'Saturday',
+    dateLabel: 'Mar 14',
     items: [
       createWeeklyItem('wd-4-b1', 'Veggie Omelette', 'Three-egg omelette packed with fresh vegetables.', 340, ['vegetarian', 'glutenFree'], 'breakfast'),
       createWeeklyItem('wd-4-b2', 'Scrambled Eggs', 'Fluffy scrambled eggs with chives.', 310, ['glutenFree', 'highProtein'], 'breakfast'),
@@ -211,8 +218,8 @@ export const initialWeeklyMenu: WeeklyDay[] = [
   },
   {
     id: 'wd-5',
-    weekday: 'Friday',
-    dateLabel: 'Feb 27',
+    weekday: 'Sunday',
+    dateLabel: 'Mar 15',
     items: [
       createWeeklyItem('wd-5-b1', 'Overnight Oats', 'Creamy oats topped with fresh berries.', 290, ['vegan', 'highProtein'], 'breakfast'),
       createWeeklyItem('wd-5-b2', 'Fluffy Pancakes', 'Light and fluffy pancakes served with maple syrup.', 420, ['vegetarian'], 'breakfast'),
@@ -224,8 +231,8 @@ export const initialWeeklyMenu: WeeklyDay[] = [
   },
   {
     id: 'wd-6',
-    weekday: 'Saturday',
-    dateLabel: 'Feb 28',
+    weekday: 'Monday',
+    dateLabel: 'Mar 16',
     items: [
       createWeeklyItem('wd-6-b1', 'Fluffy Pancakes', 'Light and fluffy pancakes served with maple syrup.', 420, ['vegetarian'], 'breakfast'),
       createWeeklyItem('wd-6-b2', 'Veggie Omelette', 'Three-egg omelette packed with fresh vegetables.', 340, ['vegetarian', 'glutenFree'], 'breakfast'),
@@ -237,8 +244,8 @@ export const initialWeeklyMenu: WeeklyDay[] = [
   },
   {
     id: 'wd-7',
-    weekday: 'Sunday',
-    dateLabel: 'Mar 1',
+    weekday: 'Tuesday',
+    dateLabel: 'Mar 17',
     items: [
       createWeeklyItem('wd-7-b1', 'Veggie Omelette', 'Three-egg omelette packed with fresh vegetables.', 340, ['vegetarian', 'glutenFree'], 'breakfast'),
       createWeeklyItem('wd-7-b2', 'Overnight Oats', 'Creamy oats topped with fresh berries.', 290, ['vegan', 'highProtein'], 'breakfast'),

@@ -8,6 +8,7 @@ interface SessionContextValue {
   currentUser: User | null;
   needsOnboarding: boolean;
   isAuthenticated: boolean;
+  isLoadingSession: boolean;
   effectiveDietaryTags: DietaryTag[];
   effectiveAllergies: Allergen[];
   effectiveOtherAllergies: string[];
@@ -33,13 +34,14 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
   const systemScheme = useColorScheme();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false);
-  const [appearanceMode, setAppearanceModeState] = useState<AppearanceMode>('system');
+  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
+  const [appearanceMode, setAppearanceModeState] = useState<AppearanceMode>('light');
   const [highContrastEnabled, setHighContrastEnabledState] = useState<boolean>(false);
   const [textSizeMultiplier, setTextSizeMultiplierState] = useState<number>(1.0);
   const [appLanguage, setAppLanguageState] = useState<string>('en');
 
   useEffect(() => {
-    AsyncStorage.multiGet(['appearanceMode', 'highContrastEnabled', 'textSizeMultiplier', 'appLanguage']).then((pairs) => {
+    AsyncStorage.multiGet(['appearanceMode', 'highContrastEnabled', 'textSizeMultiplier', 'appLanguage', 'currentUser']).then((pairs) => {
       pairs.forEach(([key, value]) => {
         if (value == null) return;
         if (key === 'appearanceMode' && (value === 'system' || value === 'light' || value === 'dark')) setAppearanceModeState(value);
@@ -49,7 +51,21 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
           if (!Number.isNaN(n) && n >= 0.85 && n <= 1.4) setTextSizeMultiplierState(n);
         }
         if (key === 'appLanguage') setAppLanguageState(value);
+        if (key === 'currentUser') {
+          try {
+            const parsed = JSON.parse(value) as User;
+            if (parsed && parsed.id && parsed.email) {
+              console.log('[Session] Restored user from storage:', parsed.email);
+              setCurrentUser(parsed);
+            }
+          } catch {
+            console.log('[Session] Failed to parse stored user');
+          }
+        }
       });
+      setIsLoadingSession(false);
+    }).catch(() => {
+      setIsLoadingSession(false);
     });
   }, []);
 
@@ -62,12 +78,18 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
     console.log('[Session] Logging in user:', user.email, 'role:', user.role, 'needsOnboarding:', options?.needsOnboarding ?? false);
     setCurrentUser(user);
     setNeedsOnboarding(options?.needsOnboarding ?? false);
+    void AsyncStorage.setItem('currentUser', JSON.stringify(user));
   }, []);
 
   const logout = useCallback(() => {
     console.log('[Session] Logging out current session');
     setCurrentUser(null);
     setNeedsOnboarding(false);
+    void AsyncStorage.removeItem('currentUser');
+  }, []);
+
+  const persistUser = useCallback((user: User) => {
+    void AsyncStorage.setItem('currentUser', JSON.stringify(user));
   }, []);
 
   const completeOnboarding = useCallback((data: { dietaryRestrictions: DietaryTag[]; allergies?: Allergen[]; otherDietary?: string[]; otherAllergies?: string[] }) => {
@@ -81,17 +103,19 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
         otherDietaryRestrictions: data.otherDietary,
         hasCompletedOnboarding: true,
       };
-      return { ...prev, profile };
+      const updated = { ...prev, profile };
+      persistUser(updated);
+      return updated;
     });
     setNeedsOnboarding(false);
-  }, []);
+  }, [persistUser]);
 
   const updateDietaryPreferences = useCallback((tags: DietaryTag[]) => {
     console.log('[Session] Updating dietary preferences:', tags.join(', ') || 'none');
     setCurrentUser((prev) => {
       if (!prev || prev.role !== 'student') return prev;
       const existing = prev.profile ?? { dietaryRestrictions: [], allergies: [], hasCompletedOnboarding: true };
-      return {
+      const updated = {
         ...prev,
         profile: {
           ...existing,
@@ -99,15 +123,17 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
           hasCompletedOnboarding: true,
         },
       };
+      persistUser(updated);
+      return updated;
     });
-  }, []);
+  }, [persistUser]);
 
   const updateAllergies = useCallback((allergies: Allergen[], otherAllergies?: string[]) => {
     console.log('[Session] Updating allergies:', allergies.join(', ') || 'none', otherAllergies);
     setCurrentUser((prev) => {
       if (!prev || prev.role !== 'student') return prev;
       const existing = prev.profile ?? { dietaryRestrictions: [], allergies: [], hasCompletedOnboarding: true };
-      return {
+      const updated = {
         ...prev,
         profile: {
           ...existing,
@@ -116,15 +142,16 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
           hasCompletedOnboarding: true,
         },
       };
+      persistUser(updated);
+      return updated;
     });
-    void AsyncStorage.setItem('userAllergies', JSON.stringify({ allergies, otherAllergies }));
-  }, []);
+  }, [persistUser]);
 
   const updateOtherDietary = useCallback((other: string[]) => {
     setCurrentUser((prev) => {
       if (!prev || prev.role !== 'student') return prev;
       const existing = prev.profile ?? { dietaryRestrictions: [], allergies: [], hasCompletedOnboarding: true };
-      return {
+      const updated = {
         ...prev,
         profile: {
           ...existing,
@@ -132,8 +159,10 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
           hasCompletedOnboarding: true,
         },
       };
+      persistUser(updated);
+      return updated;
     });
-  }, []);
+  }, [persistUser]);
 
   const setAppearanceMode = useCallback((mode: AppearanceMode) => {
     console.log('[Session] Setting appearance mode:', mode);
@@ -163,6 +192,7 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
     currentUser,
     needsOnboarding,
     isAuthenticated: currentUser !== null,
+    isLoadingSession,
     effectiveDietaryTags: currentUser?.profile?.dietaryRestrictions ?? [],
     effectiveAllergies: currentUser?.profile?.allergies ?? [],
     effectiveOtherAllergies: currentUser?.profile?.otherAllergies ?? [],
@@ -182,5 +212,5 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
     setHighContrastEnabled,
     setTextSizeMultiplier,
     setAppLanguage,
-  }), [appLanguage, appearanceMode, completeOnboarding, currentUser, highContrastEnabled, login, logout, needsOnboarding, resolvedColorScheme, setAppLanguage, setAppearanceMode, setHighContrastEnabled, setTextSizeMultiplier, textSizeMultiplier, updateDietaryPreferences, updateAllergies, updateOtherDietary]);
+  }), [appLanguage, appearanceMode, completeOnboarding, currentUser, highContrastEnabled, isLoadingSession, login, logout, needsOnboarding, resolvedColorScheme, setAppLanguage, setAppearanceMode, setHighContrastEnabled, setTextSizeMultiplier, textSizeMultiplier, updateDietaryPreferences, updateAllergies, updateOtherDietary]);
 });

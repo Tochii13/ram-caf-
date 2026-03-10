@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -333,15 +333,25 @@ function AuthRootView() {
 }
 
 export default function RootScreen() {
-  const { currentUser, needsOnboarding, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { currentUser, needsOnboarding, resolvedColorScheme, highContrastEnabled, isLoadingSession } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
+
+  if (isLoadingSession) {
+    return (
+      <View style={[styles.safeArea, { backgroundColor: colors.backgroundMain, justifyContent: 'center', alignItems: 'center' }]}>
+        <Image source={require('@/assets/images/logo.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
+      </View>
+    );
+  }
 
   if (!currentUser) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.backgroundMain }]} edges={['top', 'bottom']}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <AuthRootView />
-        </ScrollView>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <AuthRootView />
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }

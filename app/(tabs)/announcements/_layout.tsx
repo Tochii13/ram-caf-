@@ -12,11 +12,10 @@ export default function AnnouncementsLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Announcements',
-          headerLargeTitle: true,
+          title: 'Updates',
+          headerLargeTitle: false,
           contentStyle: { backgroundColor: colors.backgroundMain },
           headerStyle: { backgroundColor: colors.backgroundMain },
-          headerLargeTitleStyle: { color: colors.textPrimary },
           headerTitleStyle: { color: colors.textPrimary, fontWeight: '600' },
         }}
       />

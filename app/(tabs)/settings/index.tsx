@@ -3,7 +3,7 @@ import { Alert, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Sw
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, LogOut, RotateCcw, Shield, Sun, Type, Globe, Bell, Heart, AlertTriangle } from 'lucide-react-native';
+import { ChevronRight, LogOut, RotateCcw, Shield, Sun, Type, Globe, Bell, Heart, AlertTriangle, UtensilsCrossed, Clock, Megaphone } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { useSession } from '@/contexts/SessionContext';
@@ -251,7 +251,7 @@ export default function SettingsScreen() {
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
                 <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
-                  <Bell size={16} color={colors.brandPrimary} />
+                  <Megaphone size={16} color={colors.brandPrimary} />
                 </View>
                 <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Announcements</Text>
               </View>
@@ -260,21 +260,30 @@ export default function SettingsScreen() {
             <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary, marginLeft: 44 }]}>New Menu Items</Text>
+                <View style={[styles.settingIcon, { backgroundColor: colors.accentGreenLight }]}>
+                  <UtensilsCrossed size={16} color={colors.accentGreen} />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>New Menu Items</Text>
               </View>
               <Switch value={notifNewMenu} onValueChange={(v) => handleNotificationToggle(setNotifNewMenu, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
             <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary, marginLeft: 44 }]}>Daily Menu Reminder</Text>
+                <View style={[styles.settingIcon, { backgroundColor: colors.accentGoldLight }]}>
+                  <Bell size={16} color={colors.accentGold} />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Daily Menu Reminder</Text>
               </View>
               <Switch value={notifDailyReminder} onValueChange={(v) => handleNotificationToggle(setNotifDailyReminder, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
             <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary, marginLeft: 44 }]}>Meal Period Alerts</Text>
+                <View style={[styles.settingIcon, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
+                  <Clock size={16} color="#E67E22" />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Meal Period Alerts</Text>
               </View>
               <Switch value={notifMealAlerts} onValueChange={(v) => handleNotificationToggle(setNotifMealAlerts, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
