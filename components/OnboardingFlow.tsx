@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Check, CheckCircle2 } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import { useSession } from '@/contexts/SessionContext';
@@ -24,6 +25,7 @@ function DietaryOptionRow({ tag, selected, onPress, colors }: { tag: DietaryTag;
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.sequence([
       Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 6 }),
       Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }),
@@ -38,7 +40,7 @@ function DietaryOptionRow({ tag, selected, onPress, colors }: { tag: DietaryTag;
         style={[
           styles.preferenceRow,
           { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle },
-          selected && { borderColor: colors.brandPrimary, borderWidth: 2, backgroundColor: `${colors.brandPrimary}1A` },
+          selected && { borderColor: colors.brandPrimary, borderWidth: 2, backgroundColor: colors.brandPrimaryLight },
         ]}
         testID={`dietary-option-${tag}`}
         accessibilityLabel={`${DIETARY_TAG_LABELS[tag]} dietary preference`}
@@ -130,7 +132,7 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
         {step === 0 ? (
           <View style={styles.centeredStep}>
             <Animated.View style={{ transform: [{ scale: welcomeScale }] }}>
-              <Text style={styles.welcomeEmoji}>🍽️</Text>
+              <Image source={require('@/assets/images/logo.png')} style={styles.welcomeLogo} resizeMode="contain" />
             </Animated.View>
             <Text style={[styles.title, { color: colors.textPrimary }]}>Welcome, {firstName}!</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Let&apos;s personalize your dining experience. It&apos;ll only take a moment.</Text>
@@ -258,8 +260,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
   },
-  welcomeEmoji: {
-    fontSize: 72,
+  welcomeLogo: {
+    width: 100,
+    height: 100,
     marginBottom: 20,
   },
   title: {

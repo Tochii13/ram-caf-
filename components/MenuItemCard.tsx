@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
-import { Pressable, Text, View, StyleSheet } from 'react-native';
-import { AlertTriangle } from 'lucide-react-native';
+import React, { useMemo, useRef } from 'react';
+import { Animated, Pressable, Text, View, StyleSheet, Platform } from 'react-native';
+import { AlertTriangle, ChevronRight } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
-import Card from '@/components/Card';
 import FlowTagList from '@/components/FlowTagList';
 import { useSession } from '@/contexts/SessionContext';
 import {
@@ -30,13 +29,14 @@ function getConflictingAllergens(tags: DietaryTag[], allergens: Allergen[]): All
   if (tags.includes('vegetarian') && allergens.includes('shellfish')) conflicts.add('shellfish');
   if (tags.includes('dairyFree') && allergens.includes('dairy')) conflicts.add('dairy');
   if (tags.includes('nutFree') && allergens.includes('nuts')) conflicts.add('nuts');
-   if (tags.includes('halal') && allergens.includes('pork')) conflicts.add('pork');
+  if (tags.includes('halal') && allergens.includes('pork')) conflicts.add('pork');
   return Array.from(conflicts);
 }
 
 export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardProps) {
   const { effectiveDietaryTags, effectiveAllergies, resolvedColorScheme, highContrastEnabled } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const conflicts = useMemo(() => getConflictingAllergens(effectiveDietaryTags, item.allergens), [effectiveDietaryTags, item.allergens]);
   const allergyMatch = useMemo(() => item.allergens.filter((a) => effectiveAllergies.includes(a)), [item.allergens, effectiveAllergies]);
@@ -63,61 +63,86 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
     return parts.join(' ');
   }, [showCaution, warningText]);
 
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
+  };
+
   const content = (
-    <Card style={[styles.cardPadding, isSoldOut && styles.soldOutCard]}>
+    <View style={[
+      styles.card,
+      {
+        backgroundColor: colors.backgroundCard,
+        shadowColor: colors.shadow,
+      },
+      isSoldOut && styles.soldOutCard,
+    ]}>
       <View style={styles.row}>
         <View style={[styles.emojiSquare, { backgroundColor: colors.surfaceTimeBlock }]} accessible={false}>
           <Text style={styles.emoji}>{item.emoji}</Text>
         </View>
         <View style={styles.content}>
-          <Text style={[styles.calories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
-          <Text style={[styles.name, { color: isSoldOut ? colors.textSecondary : colors.textPrimary }]}>{item.name}</Text>
-          <View style={styles.availRow}>
-            <Text style={[styles.availText, { color: availConfig.color }]}>{availConfig.icon} {availConfig.label}</Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: isSoldOut ? colors.textSecondary : colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+            {onPress ? <ChevronRight size={16} color={colors.textSecondary} /> : null}
           </View>
-          <Text style={[styles.description, { color: colors.textSecondary }]}>{item.description}</Text>
-          <FlowTagList style={styles.pills}>
-            {item.dietaryTags.map((tag) => (
-              <View
-                key={tag}
-                style={[
-                  styles.pill,
-                  highContrastEnabled
-                    ? { backgroundColor: colors.brandPrimary }
-                    : { backgroundColor: 'rgba(155,64,64,0.15)' },
-                ]}
-              >
-                <Text style={[
-                  styles.pillText,
-                  { color: highContrastEnabled ? '#FFFFFF' : colors.brandPrimary },
-                ]}>
-                  {DIETARY_TAG_EMOJIS[tag]} {DIETARY_TAG_LABELS[tag]}
-                </Text>
-              </View>
-            ))}
-          </FlowTagList>
+          <View style={styles.metaRow}>
+            <Text style={[styles.calories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
+            <View style={[styles.availDot, { backgroundColor: availConfig.color }]} />
+            <Text style={[styles.availText, { color: availConfig.color }]}>{availConfig.label}</Text>
+          </View>
+          <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
+          {item.dietaryTags.length > 0 ? (
+            <FlowTagList style={styles.pills}>
+              {item.dietaryTags.map((tag) => (
+                <View
+                  key={tag}
+                  style={[
+                    styles.pill,
+                    highContrastEnabled
+                      ? { backgroundColor: colors.brandPrimary }
+                      : { backgroundColor: colors.brandPrimaryMedium },
+                  ]}
+                >
+                  <Text style={[
+                    styles.pillText,
+                    { color: highContrastEnabled ? '#FFFFFF' : colors.brandPrimary },
+                  ]}>
+                    {DIETARY_TAG_EMOJIS[tag]} {DIETARY_TAG_LABELS[tag]}
+                  </Text>
+                </View>
+              ))}
+            </FlowTagList>
+          ) : null}
           {showCaution ? (
-            <View style={styles.warningRow}>
+            <View style={[styles.warningRow, { backgroundColor: 'rgba(230,126,34,0.08)' }]}>
               <AlertTriangle size={13} color="#E67E22" />
-              <Text style={[styles.warningText, highContrastEnabled && styles.warningTextHighContrast]}>⚠️Caution: contains {warningText}</Text>
+              <Text style={[styles.warningText, highContrastEnabled && styles.warningTextHighContrast]}>Contains {warningText}</Text>
             </View>
           ) : null}
         </View>
       </View>
-    </Card>
+    </View>
   );
 
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint={accessibilityHint}
-        testID={`menu-item-${item.id}`}
-      >
-        {content}
-      </Pressable>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityHint={accessibilityHint}
+          testID={`menu-item-${item.id}`}
+        >
+          {content}
+        </Pressable>
+      </Animated.View>
     );
   }
 
@@ -134,9 +159,25 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
 });
 
 const styles = StyleSheet.create({
-  cardPadding: {
+  card: {
+    borderRadius: 16,
     padding: 14,
     marginBottom: 10,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+      },
+    }),
   },
   soldOutCard: {
     opacity: 0.5,
@@ -146,39 +187,52 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emojiSquare: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emoji: {
-    fontSize: 22,
+    fontSize: 24,
   },
   content: {
     flex: 1,
   },
-  calories: {
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  name: {
-    fontSize: 17,
-    fontWeight: '600' as const,
-  },
-  availRow: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  name: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600' as const,
+    letterSpacing: -0.2,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginTop: 3,
+  },
+  calories: {
+    fontSize: 13,
+  },
+  availDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   availText: {
     fontSize: 12,
-    fontWeight: '600' as const,
+    fontWeight: '500' as const,
   },
   description: {
-    fontSize: 15,
-    marginTop: 4,
-    lineHeight: 21,
+    fontSize: 14,
+    marginTop: 6,
+    lineHeight: 20,
   },
   pills: {
     marginTop: 10,
@@ -197,6 +251,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   warningText: {
     flex: 1,

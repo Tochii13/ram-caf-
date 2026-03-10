@@ -1,10 +1,9 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ForkKnife } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { getColors } from '@/constants/colors';
-import Card from '@/components/Card';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { useSession } from '@/contexts/SessionContext';
 import { ADMIN_EMAIL, SCHOOL_DOMAIN } from '@/mocks/data';
@@ -33,7 +32,7 @@ function ErrorText({ message }: { message?: string }) {
   const animatedOpacity = useRef(new Animated.Value(message ? 1 : 0)).current;
   const animatedTranslateY = useRef(new Animated.Value(message ? 0 : -4)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(animatedOpacity, {
         toValue: message ? 1 : 0,
@@ -76,18 +75,37 @@ function AuthInput({
   testID: string;
   colors: ReturnType<typeof getColors>;
 }) {
+  const focusAnim = useRef(new Animated.Value(0)).current;
+
+  const handleFocus = () => {
+    Animated.timing(focusAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+  };
+
+  const handleBlur = () => {
+    Animated.timing(focusAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+  };
+
+  const borderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.borderSubtle, colors.brandPrimary],
+  });
+
   return (
-    <TextInput
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={colors.textSecondary}
-      secureTextEntry={secureTextEntry}
-      keyboardType={keyboardType}
-      autoCapitalize={autoCapitalize}
-      style={[styles.input, { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle, color: colors.textPrimary }]}
-      testID={testID}
-    />
+    <Animated.View style={[styles.inputWrap, { borderColor }]}>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textSecondary}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        style={[styles.input, { backgroundColor: colors.backgroundCard, color: colors.textPrimary }]}
+        testID={testID}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+      />
+    </Animated.View>
   );
 }
 
@@ -98,6 +116,7 @@ function LoginForm() {
   const [password, setPassword] = useState<string>('');
   const [errors, setErrors] = useState<LoginErrors>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   const handleLogin = useCallback(() => {
     console.log('[Auth] Attempting login for email:', email);
@@ -115,9 +134,11 @@ function LoginForm() {
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
+      if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSubmitting(true);
 
     setTimeout(() => {
@@ -131,6 +152,7 @@ function LoginForm() {
           ? undefined
           : {
               dietaryRestrictions: [],
+              allergies: [],
               hasCompletedOnboarding: true,
             },
       };
@@ -146,9 +168,18 @@ function LoginForm() {
       <ErrorText message={errors.email ?? errors.form} />
       <AuthInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoCapitalize="none" testID="login-password-input" colors={colors} />
       <ErrorText message={undefined} />
-      <Pressable onPress={handleLogin} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed, isSubmitting && styles.primaryButtonPressed]} disabled={isSubmitting} testID="login-submit-button">
-        {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Log In</Text>}
-      </Pressable>
+      <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+        <Pressable
+          onPress={handleLogin}
+          onPressIn={() => Animated.spring(buttonScale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start()}
+          onPressOut={() => Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start()}
+          style={[styles.primaryButton, { backgroundColor: colors.brandPrimary }]}
+          disabled={isSubmitting}
+          testID="login-submit-button"
+        >
+          {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Log In</Text>}
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -162,6 +193,7 @@ function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [errors, setErrors] = useState<SignupErrors>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   const handleSignup = useCallback(() => {
     console.log('[Auth] Attempting signup for email:', email);
@@ -187,9 +219,11 @@ function SignupForm() {
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
+      if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSubmitting(true);
 
     setTimeout(() => {
@@ -214,9 +248,18 @@ function SignupForm() {
       <ErrorText message={errors.password} />
       <AuthInput value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm password" secureTextEntry autoCapitalize="none" testID="signup-confirm-password-input" colors={colors} />
       <ErrorText message={errors.confirmPassword} />
-      <Pressable onPress={handleSignup} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed, isSubmitting && styles.primaryButtonPressed]} disabled={isSubmitting} testID="signup-submit-button">
-        {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Create Account</Text>}
-      </Pressable>
+      <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+        <Pressable
+          onPress={handleSignup}
+          onPressIn={() => Animated.spring(buttonScale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start()}
+          onPressOut={() => Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start()}
+          style={[styles.primaryButton, { backgroundColor: colors.brandPrimary }]}
+          disabled={isSubmitting}
+          testID="signup-submit-button"
+        >
+          {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Create Account</Text>}
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -227,9 +270,19 @@ function AuthRootView() {
   const [mode, setMode] = useState<AuthMode>('login');
   const fade = useRef(new Animated.Value(1)).current;
   const slide = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(logoScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+      Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, [logoScale, logoOpacity]);
 
   const toggleMode = useCallback((nextMode: AuthMode) => {
     if (nextMode === mode) return;
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     Animated.parallel([
       Animated.timing(fade, { toValue: 0, duration: 120, useNativeDriver: true }),
@@ -246,22 +299,35 @@ function AuthRootView() {
 
   return (
     <View style={styles.authShell}>
-      <View style={[styles.logoCircle, { backgroundColor: colors.brandPrimary }]}>
-        <ForkKnife size={34} color="#FFFFFF" />
-      </View>
+      <Animated.View style={[styles.logoContainer, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
+        <Image
+          source={require('@/assets/images/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+      </Animated.View>
       <Text style={[styles.brandTitle, { color: colors.brandPrimary }]}>Ram Café</Text>
-      <Text style={[styles.tagline, { color: colors.textSecondary }]}>Your campus dining, simplified.</Text>
-      <Card style={styles.authCard}>
+      <Text style={[styles.tagline, { color: colors.textSecondary }]}>Huston-Tillotson University Dining</Text>
+
+      <View style={[styles.authCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
+        <View style={styles.tabRow}>
+          <Pressable
+            onPress={() => toggleMode('login')}
+            style={[styles.tabButton, mode === 'login' && [styles.tabButtonActive, { borderBottomColor: colors.brandPrimary }]]}
+          >
+            <Text style={[styles.tabButtonText, { color: mode === 'login' ? colors.brandPrimary : colors.textSecondary }]}>Log In</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => toggleMode('signup')}
+            style={[styles.tabButton, mode === 'signup' && [styles.tabButtonActive, { borderBottomColor: colors.brandPrimary }]]}
+          >
+            <Text style={[styles.tabButtonText, { color: mode === 'signup' ? colors.brandPrimary : colors.textSecondary }]}>Sign Up</Text>
+          </Pressable>
+        </View>
         <Animated.View style={{ opacity: fade, transform: [{ translateX: slide }] }}>
           {mode === 'login' ? <LoginForm /> : <SignupForm />}
         </Animated.View>
-        <Pressable onPress={() => toggleMode(mode === 'login' ? 'signup' : 'login')} testID="auth-toggle-button">
-          <Text style={[styles.toggleText, { color: colors.textSecondary }]}>
-            {mode === 'login' ? 'New here? ' : 'Already have an account? '}
-            <Text style={[styles.toggleTextStrong, { color: colors.brandPrimary }]}>{mode === 'login' ? 'Create an account' : 'Log in'}</Text>
-          </Text>
-        </Pressable>
-      </Card>
+      </View>
     </View>
   );
 }
@@ -301,39 +367,76 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 24,
     justifyContent: 'center',
   },
   authShell: {
     alignItems: 'center',
   },
-  logoCircle: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
+  logoContainer: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
   },
   brandTitle: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '700' as const,
     letterSpacing: -0.8,
   },
   tagline: {
-    fontSize: 15,
-    marginTop: 6,
-    marginBottom: 24,
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 28,
   },
   authCard: {
     width: '100%',
-    padding: 18,
+    borderRadius: 20,
+    padding: 20,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: { elevation: 4 },
+      web: {
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+      },
+    }),
+  },
+  tabRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 0,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomWidth: 2,
+  },
+  tabButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  inputWrap: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    overflow: 'hidden' as const,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
   },
@@ -348,25 +451,14 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     minHeight: 52,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
   },
-  primaryButtonPressed: {
-    opacity: 0.85,
-  },
   primaryButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
-  },
-  toggleText: {
-    marginTop: 18,
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  toggleTextStrong: {
-    fontWeight: '700' as const,
   },
 });

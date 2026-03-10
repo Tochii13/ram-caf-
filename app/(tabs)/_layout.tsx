@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from 'expo-router';
 import { Bell, Calendar, Settings, UtensilsCrossed } from 'lucide-react-native';
 import React from 'react';
+import { Platform } from 'react-native';
 import { getColors } from '@/constants/colors';
 import { useSession } from '@/contexts/SessionContext';
 
@@ -30,8 +31,26 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.brandPrimary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.backgroundCard,
+          backgroundColor: colors.tabBarBg,
           borderTopColor: colors.borderSubtle,
+          borderTopWidth: 0.5,
+          ...Platform.select({
+            ios: {
+              shadowColor: colors.shadow,
+              shadowOpacity: 0.06,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: -2 },
+            },
+            android: {
+              elevation: 8,
+            },
+            web: {},
+          }),
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600' as const,
+          marginTop: -2,
         },
       }}
     >
@@ -52,7 +71,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="announcements"
         options={{
-          title: 'Announcements',
+          title: 'Updates',
           tabBarLabel: 'Updates',
           tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />,
         }}

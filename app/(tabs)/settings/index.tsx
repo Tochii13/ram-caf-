@@ -1,21 +1,18 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { Alert, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
-import { RotateCcw } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { ChevronRight, LogOut, RotateCcw, Shield, Sun, Type, Globe, Bell, Heart, AlertTriangle } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
-import Card from '@/components/Card';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { useSession } from '@/contexts/SessionContext';
-import { ALLERGEN_LABELS, DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, DietaryTag, Allergen, AppearanceMode } from '@/types';
+import { DIETARY_TAG_LABELS, DietaryTag, AppearanceMode } from '@/types';
 
-const ALL_DIETARY_TAGS: DietaryTag[] = ['vegetarian', 'vegan', 'glutenFree', 'highProtein', 'dairyFree', 'nutFree', 'halal'];
-const ALL_ALLERGENS: Allergen[] = ['nuts', 'dairy', 'shellfish', 'gluten', 'soy', 'eggs', 'pork'];
-
-const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string }[] = [
-  { key: 'system', label: 'System' },
-  { key: 'light', label: 'Light' },
-  { key: 'dark', label: 'Dark' },
+const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string; icon: 'sun' | 'moon' | 'system' }[] = [
+  { key: 'system', label: 'Auto', icon: 'system' },
+  { key: 'light', label: 'Light', icon: 'sun' },
+  { key: 'dark', label: 'Dark', icon: 'moon' },
 ];
 
 const LANGUAGE_OPTIONS = [
@@ -25,20 +22,11 @@ const LANGUAGE_OPTIONS = [
   { key: 'ne', label: 'Nepali' },
 ];
 
-function hasTag(tags: DietaryTag[], tag: DietaryTag): boolean {
-  return tags.includes(tag);
-}
-
 export default function SettingsScreen() {
   const {
     currentUser,
     logout,
     effectiveDietaryTags,
-    effectiveAllergies,
-    effectiveOtherAllergies,
-    updateDietaryPreferences,
-    updateAllergies,
-    updateOtherDietary,
     appearanceMode,
     setAppearanceMode,
     highContrastEnabled,
@@ -57,225 +45,257 @@ export default function SettingsScreen() {
   const [notifDailyReminder, setNotifDailyReminder] = useState<boolean>(false);
   const [notifMealAlerts, setNotifMealAlerts] = useState<boolean>(false);
   const [showQuiz, setShowQuiz] = useState<boolean>(false);
-  const [localDietary, setLocalDietary] = useState<DietaryTag[]>(() => effectiveDietaryTags);
-  const [localAllergies, setLocalAllergies] = useState<Allergen[]>(() => effectiveAllergies);
-  const [otherDietaryText, setOtherDietaryText] = useState<string>(() => (currentUser?.profile?.otherDietaryRestrictions ?? []).join(', '));
-  const [otherAllergiesText, setOtherAllergiesText] = useState<string>(() => (effectiveOtherAllergies ?? []).join(', '));
-  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    setLocalDietary(effectiveDietaryTags);
-    setLocalAllergies(effectiveAllergies);
-    setOtherDietaryText((currentUser?.profile?.otherDietaryRestrictions ?? []).join(', '));
-    setOtherAllergiesText((effectiveOtherAllergies ?? []).join(', '));
-  }, [effectiveDietaryTags, effectiveAllergies, effectiveOtherAllergies, currentUser?.profile?.otherDietaryRestrictions]);
-
-  const dietaryRestrictions = localDietary;
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   const dietarySummary = useMemo(() => {
-    if (dietaryRestrictions.length === 0) return 'No preferences set.';
-    return dietaryRestrictions.map((item) => DIETARY_TAG_LABELS[item]).join(', ');
-  }, [dietaryRestrictions]);
-
-  const toggleDietaryTag = (tag: DietaryTag, enabled: boolean) => {
-    setLocalDietary((prev) => (enabled ? [...prev, tag] : prev.filter((item) => item !== tag)));
-  };
-
-  const toggleAllergy = (allergen: Allergen, enabled: boolean) => {
-    setLocalAllergies((prev) => (enabled ? [...prev, allergen] : prev.filter((a) => a !== allergen)));
-  };
-
-  const handleSavePreferences = () => {
-    const otherD = otherDietaryText.trim() ? otherDietaryText.split(',').map((s) => s.trim()).filter(Boolean) : [];
-    const otherA = otherAllergiesText.trim() ? otherAllergiesText.split(',').map((s) => s.trim()).filter(Boolean) : [];
-    updateDietaryPreferences(localDietary);
-    updateOtherDietary(otherD);
-    updateAllergies(localAllergies, otherA.length ? otherA : undefined);
-    setSaveFeedback('Saved');
-    setTimeout(() => setSaveFeedback(null), 2000);
-  };
+    if (effectiveDietaryTags.length === 0) return 'No preferences set';
+    return effectiveDietaryTags.map((item: DietaryTag) => DIETARY_TAG_LABELS[item]).join(', ');
+  }, [effectiveDietaryTags]);
 
   const handleLanguageChange = (lang: string) => {
     if (lang !== 'en') {
-      Alert.alert('Coming Soon', 'Spanish, French, and Nepali are coming soon. The app currently supports English.');
+      Alert.alert('Coming Soon', 'Additional languages are coming soon. The app currently supports English.');
       return;
     }
     setAppLanguage(lang);
   };
 
   const handleNotificationToggle = (setter: (v: boolean) => void, value: boolean) => {
-    if (value && Platform.OS !== 'web') {
-      setter(value);
-    } else {
-      setter(value);
+    if (Platform.OS !== 'web' && value) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    setter(value);
+  };
+
+  const handleLogout = () => {
+    if (Platform.OS !== 'web') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+    logout();
   };
 
   return (
     <>
       <ScrollView style={[styles.scroll, { backgroundColor: colors.backgroundMain }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Card style={styles.card}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PROFILE</Text>
-          <View style={styles.profileRow}>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <View style={[styles.profileCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <View style={[styles.avatar, { backgroundColor: colors.brandPrimary }]}>
               <Text style={styles.avatarText}>{currentUser?.name?.charAt(0)?.toUpperCase() ?? 'U'}</Text>
             </View>
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.textPrimary }]}>{currentUser?.name ?? 'User'}</Text>
-              <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{currentUser?.email ?? ''}</Text>
-              <Text style={[styles.profileDietary, { color: colors.textSecondary }]}>{dietarySummary}</Text>
-            </View>
-            <View style={[styles.roleBadge, { backgroundColor: `${colors.brandPrimary}1F` }]}>
+            <Text style={[styles.profileName, { color: colors.textPrimary }]}>{currentUser?.name ?? 'User'}</Text>
+            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{currentUser?.email ?? ''}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: colors.brandPrimaryLight }]}>
               <Text style={[styles.roleBadgeText, { color: colors.brandPrimary }]}>Student</Text>
             </View>
+            <Text style={[styles.profileDietary, { color: colors.textSecondary }]}>{dietarySummary}</Text>
           </View>
-        </Card>
 
-        <Card style={styles.card}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>DISPLAY</Text>
+          <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
+            <View style={styles.settingRow}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
+                <Sun size={16} color={colors.brandPrimary} />
+              </View>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Appearance</Text>
+            </View>
+            <View style={styles.segmentRow}>
+              {APPEARANCE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setAppearanceMode(opt.key);
+                  }}
+                  style={[
+                    styles.segmentButton,
+                    { backgroundColor: appearanceMode === opt.key ? colors.brandPrimary : colors.surfaceTimeBlock },
+                  ]}
+                  accessibilityLabel={`${opt.label} appearance`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: appearanceMode === opt.key }}
+                >
+                  <Text style={[styles.segmentText, { color: appearanceMode === opt.key ? '#FFFFFF' : colors.textSecondary }]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
 
-          <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>Appearance</Text>
-          <View style={styles.segmentRow}>
-            {APPEARANCE_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.key}
-                onPress={() => setAppearanceMode(opt.key)}
-                style={[
-                  styles.segmentButton,
-                  { borderColor: colors.borderSubtle },
-                  appearanceMode === opt.key && { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
-                ]}
-                accessibilityLabel={`${opt.label} appearance`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: appearanceMode === opt.key }}
-              >
-                <Text style={[styles.segmentText, { color: colors.textPrimary }, appearanceMode === opt.key && { color: '#FFFFFF' }]}>{opt.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
 
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>High Contrast</Text>
-            <Switch
-              value={highContrastEnabled}
-              onValueChange={setHighContrastEnabled}
-              trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }}
-              thumbColor="#FFFFFF"
-              accessibilityLabel="High Contrast mode"
-            />
-          </View>
-
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-
-          <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>Text Size</Text>
-          <View style={styles.sliderRow}>
-            <Text style={[styles.sliderLabel, { color: colors.textSecondary, fontSize: 13 }]}>A</Text>
-            <View style={styles.sliderWrap}>
-              <Slider
-                minimumValue={0.85}
-                maximumValue={1.4}
-                step={0.05}
-                value={textSizeMultiplier}
-                onSlidingComplete={setTextSizeMultiplier}
-                minimumTrackTintColor={colors.brandPrimary}
-                maximumTrackTintColor={colors.borderSubtle}
-                thumbTintColor={colors.brandPrimary}
-                accessibilityLabel={`Text size: ${Math.round(textSizeMultiplier * 100)}%`}
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
+                  <Shield size={16} color="#E67E22" />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>High Contrast</Text>
+              </View>
+              <Switch
+                value={highContrastEnabled}
+                onValueChange={setHighContrastEnabled}
+                trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }}
+                thumbColor="#FFFFFF"
+                accessibilityLabel="High Contrast mode"
               />
             </View>
-            <Text style={[styles.sliderLabel, { color: colors.textSecondary, fontSize: 20 }]}>A</Text>
-          </View>
 
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
 
-          <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>Language</Text>
-          <View style={styles.segmentRow}>
-            {LANGUAGE_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.key}
-                onPress={() => handleLanguageChange(opt.key)}
-                style={[
-                  styles.segmentButton,
-                  { borderColor: colors.borderSubtle },
-                  appLanguage === opt.key && { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary },
-                ]}
-                accessibilityLabel={`${opt.label} language`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: appLanguage === opt.key }}
-              >
-                <Text style={[styles.segmentText, { color: colors.textPrimary }, appLanguage === opt.key && { color: '#FFFFFF' }]}>{opt.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Card>
-
-        <Card style={styles.card}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PREFERENCES & ALLERGIES</Text>
-          <Pressable
-            onPress={() => router.push('/settings/dietary')}
-            style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Edit dietary preferences"
-          >
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Dietary preferences</Text>
-          </Pressable>
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-          <Pressable
-            onPress={() => router.push('/settings/allergies')}
-            style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Edit allergies"
-          >
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Allergies</Text>
-          </Pressable>
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-          <Pressable
-            onPress={() => setShowQuiz(true)}
-            style={({ pressed }) => [styles.quizRow, pressed && styles.rowPressed]}
-            testID="retake-preferences-quiz-button"
-            accessibilityLabel="Retake Preferences Quiz"
-            accessibilityRole="button"
-          >
-            <View style={styles.quizLabelWrap}>
-              <RotateCcw size={16} color={colors.brandPrimary} />
-              <Text style={[styles.quizText, { color: colors.brandPrimary }]}>Retake Preferences Quiz</Text>
+            <View style={styles.settingRow}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.accentGoldLight }]}>
+                <Type size={16} color={colors.accentGold} />
+              </View>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Text Size</Text>
             </View>
-          </Pressable>
-        </Card>
+            <View style={styles.sliderRow}>
+              <Text style={[styles.sliderLabel, { color: colors.textSecondary, fontSize: 13 }]}>A</Text>
+              <View style={styles.sliderWrap}>
+                <Slider
+                  minimumValue={0.85}
+                  maximumValue={1.4}
+                  step={0.05}
+                  value={textSizeMultiplier}
+                  onSlidingComplete={setTextSizeMultiplier}
+                  minimumTrackTintColor={colors.brandPrimary}
+                  maximumTrackTintColor={colors.borderSubtle}
+                  thumbTintColor={colors.brandPrimary}
+                  accessibilityLabel={`Text size: ${Math.round(textSizeMultiplier * 100)}%`}
+                />
+              </View>
+              <Text style={[styles.sliderLabel, { color: colors.textSecondary, fontSize: 20 }]}>A</Text>
+            </View>
 
-        <Card style={styles.card}>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+
+            <View style={styles.settingRow}>
+              <View style={[styles.settingIcon, { backgroundColor: colors.accentGreenLight }]}>
+                <Globe size={16} color={colors.accentGreen} />
+              </View>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Language</Text>
+            </View>
+            <View style={styles.segmentRow}>
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => handleLanguageChange(opt.key)}
+                  style={[
+                    styles.segmentButton,
+                    { backgroundColor: appLanguage === opt.key ? colors.brandPrimary : colors.surfaceTimeBlock },
+                  ]}
+                  accessibilityLabel={`${opt.label} language`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: appLanguage === opt.key }}
+                >
+                  <Text style={[styles.segmentText, { color: appLanguage === opt.key ? '#FFFFFF' : colors.textSecondary }]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PREFERENCES & ALLERGIES</Text>
+          <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
+            <Pressable
+              onPress={() => router.push('/settings/dietary')}
+              style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit dietary preferences"
+            >
+              <View style={styles.navRowLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: colors.accentGreenLight }]}>
+                  <Heart size={16} color={colors.accentGreen} />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Dietary Preferences</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textSecondary} />
+            </Pressable>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+            <Pressable
+              onPress={() => router.push('/settings/allergies')}
+              style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Edit allergies"
+            >
+              <View style={styles.navRowLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
+                  <AlertTriangle size={16} color="#E67E22" />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Allergies</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textSecondary} />
+            </Pressable>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                setShowQuiz(true);
+              }}
+              style={({ pressed }) => [styles.navRow, pressed && styles.rowPressed]}
+              testID="retake-preferences-quiz-button"
+              accessibilityLabel="Retake Preferences Quiz"
+              accessibilityRole="button"
+            >
+              <View style={styles.navRowLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
+                  <RotateCcw size={16} color={colors.brandPrimary} />
+                </View>
+                <Text style={[styles.quizText, { color: colors.brandPrimary }]}>Retake Preferences Quiz</Text>
+              </View>
+            </Pressable>
+          </View>
+
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Announcements</Text>
-            <Switch value={notifAnnouncements} onValueChange={(v) => handleNotificationToggle(setNotifAnnouncements, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
+          <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
+                  <Bell size={16} color={colors.brandPrimary} />
+                </View>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Announcements</Text>
+              </View>
+              <Switch value={notifAnnouncements} onValueChange={(v) => handleNotificationToggle(setNotifAnnouncements, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary, marginLeft: 44 }]}>New Menu Items</Text>
+              </View>
+              <Switch value={notifNewMenu} onValueChange={(v) => handleNotificationToggle(setNotifNewMenu, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary, marginLeft: 44 }]}>Daily Menu Reminder</Text>
+              </View>
+              <Switch value={notifDailyReminder} onValueChange={(v) => handleNotificationToggle(setNotifDailyReminder, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
+            </View>
+            <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary, marginLeft: 44 }]}>Meal Period Alerts</Text>
+              </View>
+              <Switch value={notifMealAlerts} onValueChange={(v) => handleNotificationToggle(setNotifMealAlerts, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
+            </View>
           </View>
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>New Menu Items</Text>
-            <Switch value={notifNewMenu} onValueChange={(v) => handleNotificationToggle(setNotifNewMenu, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Daily Menu Reminder</Text>
-            <Switch value={notifDailyReminder} onValueChange={(v) => handleNotificationToggle(setNotifDailyReminder, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
-          <View style={styles.toggleRow}>
-            <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Meal Period Alerts</Text>
-            <Switch value={notifMealAlerts} onValueChange={(v) => handleNotificationToggle(setNotifMealAlerts, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
-          </View>
-        </Card>
 
-        <Card style={styles.card}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ACCOUNT</Text>
-          <Pressable onPress={logout} style={({ pressed }) => [styles.logoutRow, pressed && styles.rowPressed]} testID="logout-button" accessibilityLabel="Log Out" accessibilityRole="button">
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [styles.logoutCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }, pressed && styles.rowPressed]}
+            testID="logout-button"
+            accessibilityLabel="Log Out"
+            accessibilityRole="button"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: 'rgba(211,47,47,0.1)' }]}>
+              <LogOut size={16} color={colors.destructive} />
+            </View>
             <Text style={[styles.logoutText, { color: colors.destructive }]}>Log Out</Text>
           </Pressable>
-        </Card>
 
-        <View style={styles.bottomPad} />
+          <View style={styles.bottomPad} />
+        </Animated.View>
       </ScrollView>
       <Modal visible={showQuiz} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setShowQuiz(false)}>
         <View style={[styles.modalShell, { backgroundColor: colors.backgroundMain }]}>
@@ -291,63 +311,106 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
-    gap: 16,
+    padding: 20,
   },
-  card: {
-    padding: 16,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    letterSpacing: 0.8,
-    marginBottom: 14,
-  },
-  profileRow: {
-    flexDirection: 'row',
+  profileCard: {
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: { elevation: 3 },
+      web: {
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+      },
+    }),
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 14,
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '700' as const,
   },
-  profileInfo: {
-    flex: 1,
-  },
   profileName: {
-    fontSize: 17,
-    fontWeight: '600' as const,
+    fontSize: 20,
+    fontWeight: '700' as const,
+    letterSpacing: -0.3,
   },
   profileEmail: {
     fontSize: 14,
-    marginTop: 2,
-  },
-  profileDietary: {
-    fontSize: 13,
-    marginTop: 6,
+    marginTop: 4,
   },
   roleBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 5,
-    borderRadius: 14,
+    borderRadius: 20,
+    marginTop: 10,
   },
   roleBadgeText: {
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  rowLabel: {
+  profileDietary: {
+    fontSize: 13,
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  sectionCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+      },
+      android: { elevation: 2 },
+      web: {
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+      },
+    }),
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  settingIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingLabel: {
     fontSize: 15,
     fontWeight: '500' as const,
-    marginBottom: 8,
   },
   segmentRow: {
     flexDirection: 'row',
@@ -356,9 +419,8 @@ const styles = StyleSheet.create({
   },
   segmentButton: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 10,
-    borderWidth: 1,
+    minHeight: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -384,61 +446,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 44,
+    minHeight: 48,
   },
-  toggleLabel: {
-    fontSize: 16,
-  },
-  divider: {
-    height: 1,
-    marginVertical: 10,
-  },
-  quizRow: {
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  quizLabelWrap: {
+  toggleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '500' as const,
+  },
+  divider: {
+    height: 0.5,
+    marginVertical: 8,
+  },
+  navRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  navRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  rowPressed: {
+    opacity: 0.6,
   },
   quizText: {
     fontSize: 15,
     fontWeight: '600' as const,
   },
-  subtitleSmall: {
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-  },
-  saveButton: {
-    minHeight: 48,
-    borderRadius: 12,
+  logoutCard: {
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  logoutRow: {
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  rowPressed: {
-    opacity: 0.6,
+    gap: 10,
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+      },
+      android: { elevation: 2 },
+      web: {
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+      },
+    }),
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
   },
   bottomPad: {
     height: 24,
