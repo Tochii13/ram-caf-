@@ -79,17 +79,13 @@ function AuthInput({
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handleFocus = () => {
-    Animated.parallel([
-      Animated.timing(focusAnim, { toValue: 1, duration: 250, useNativeDriver: false }),
-      Animated.spring(scaleAnim, { toValue: 1.01, useNativeDriver: true, speed: 50, bounciness: 4 }),
-    ]).start();
+    Animated.timing(focusAnim, { toValue: 1, duration: 250, useNativeDriver: false }).start();
+    Animated.spring(scaleAnim, { toValue: 1.01, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
   };
 
   const handleBlur = () => {
-    Animated.parallel([
-      Animated.timing(focusAnim, { toValue: 0, duration: 250, useNativeDriver: false }),
-      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 4 }),
-    ]).start();
+    Animated.timing(focusAnim, { toValue: 0, duration: 250, useNativeDriver: false }).start();
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 4 }).start();
   };
 
   const borderColor = focusAnim.interpolate({
@@ -103,20 +99,22 @@ function AuthInput({
   });
 
   return (
-    <Animated.View style={[styles.inputWrap, { borderColor, borderWidth, transform: [{ scale: scaleAnim }] }]}>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        style={[styles.input, { backgroundColor: colors.backgroundCard, color: colors.textPrimary }]}
-        testID={testID}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-      />
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Animated.View style={[styles.inputWrap, { borderColor, borderWidth }]}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          style={[styles.input, { backgroundColor: colors.backgroundCard, color: colors.textPrimary }]}
+          testID={testID}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+        />
+      </Animated.View>
     </Animated.View>
   );
 }
