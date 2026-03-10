@@ -37,9 +37,9 @@ export default function TabLayout() {
           ...Platform.select({
             ios: {
               shadowColor: colors.shadow,
-              shadowOpacity: 0.06,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: -2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: -3 },
             },
             android: {
               elevation: 8,
@@ -51,6 +51,9 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: '600' as const,
           marginTop: -2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 2,
         },
       }}
     >

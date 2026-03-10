@@ -26,18 +26,36 @@ function getTimeRangeForPeriod(period: MealPeriod, isWeekend: boolean): string {
   return MEAL_PERIOD_TIMES[period].timeRange;
 }
 
+const PERIOD_EMOJI: Record<string, string> = {
+  breakfast: '🌅',
+  lunch: '☀️',
+  dinner: '🌙',
+  brunch: '🍳',
+};
+
 function WeeklyMenuItemRow({
   item,
   colors,
   highContrast,
   allergens,
+  index,
 }: {
   item: WeeklyMenuItem;
   colors: ReturnType<typeof getColors>;
   highContrast: boolean;
   allergens?: Allergen[];
+  index: number;
 }) {
   const { effectiveAllergies } = useSession();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay: index * 60, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 350, delay: index * 60, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [fadeAnim, slideAnim, index]);
 
   const warningAllergens = useMemo<Allergen[]>(() => {
     if (!allergens || allergens.length === 0 || effectiveAllergies.length === 0) return [];
@@ -52,57 +70,113 @@ function WeeklyMenuItemRow({
   const showCaution = warningAllergens.length > 0;
 
   return (
-    <View
-      style={styles.menuRow}
-      accessible
-      accessibilityLabel={`${item.name}, ${item.calories} calories. ${item.description || ''}. ${item.dietaryTags.map((t) => DIETARY_TAG_LABELS[t]).join(', ')}`}
-    >
-      <View style={styles.menuRowTop}>
-        <View style={[styles.menuEmojiSquare, { backgroundColor: colors.surfaceTimeBlock }]} accessible={false}>
-          <Text style={styles.menuEmoji}>{item.emoji}</Text>
-        </View>
-        <View style={styles.menuRowContent}>
-          <View style={styles.menuNameRow}>
-            <Text style={[styles.menuName, { color: colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
-            <Text style={[styles.menuCalories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      <View
+        style={styles.menuRow}
+        accessible
+        accessibilityLabel={`${item.name}, ${item.calories} calories. ${item.description || ''}. ${item.dietaryTags.map((t) => DIETARY_TAG_LABELS[t]).join(', ')}`}
+      >
+        <View style={styles.menuRowTop}>
+          <View style={[styles.menuEmojiSquare, { backgroundColor: colors.surfaceTimeBlock }]} accessible={false}>
+            <Text style={styles.menuEmoji}>{item.emoji}</Text>
           </View>
-          {item.description ? (
-            <Text style={[styles.menuDescription, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
-          ) : null}
-          {item.dietaryTags.length > 0 ? (
-            <FlowTagList style={styles.tagsWrap}>
-              {item.dietaryTags.map((tag) => (
-                <View
-                  key={tag}
+          <View style={styles.menuRowContent}>
+            <View style={styles.menuNameRow}>
+              <Text style={[styles.menuName, { color: colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+              <Text style={[styles.menuCalories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
+            </View>
+            {item.description ? (
+              <Text style={[styles.menuDescription, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
+            ) : null}
+            {item.dietaryTags.length > 0 ? (
+              <FlowTagList style={styles.tagsWrap}>
+                {item.dietaryTags.map((tag) => (
+                  <View
+                    key={tag}
+                    style={[
+                      styles.tagPill,
+                      highContrast
+                        ? { backgroundColor: colors.brandPrimary }
+                        : { backgroundColor: colors.brandPrimaryMedium },
+                    ]}
+                  >
+                    <Text style={[styles.tagPillText, { color: highContrast ? '#FFFFFF' : colors.brandPrimary }]}>
+                      {DIETARY_TAG_EMOJIS[tag]} {DIETARY_TAG_LABELS[tag]}
+                    </Text>
+                  </View>
+                ))}
+              </FlowTagList>
+            ) : null}
+            {showCaution ? (
+              <View style={[styles.menuWarningRow, { backgroundColor: 'rgba(230,126,34,0.08)' }]}>
+                <Text
                   style={[
-                    styles.tagPill,
-                    highContrast
-                      ? { backgroundColor: colors.brandPrimary }
-                      : { backgroundColor: colors.brandPrimaryMedium },
+                    styles.menuWarningText,
+                    highContrast && styles.menuWarningTextHighContrast,
                   ]}
                 >
-                  <Text style={[styles.tagPillText, { color: highContrast ? '#FFFFFF' : colors.brandPrimary }]}>
-                    {DIETARY_TAG_EMOJIS[tag]} {DIETARY_TAG_LABELS[tag]}
-                  </Text>
-                </View>
-              ))}
-            </FlowTagList>
-          ) : null}
-          {showCaution ? (
-            <View style={[styles.menuWarningRow, { backgroundColor: 'rgba(230,126,34,0.08)' }]}>
-              <Text
-                style={[
-                  styles.menuWarningText,
-                  highContrast && styles.menuWarningTextHighContrast,
-                ]}
-              >
-                ⚠️ Contains {warningText}
-              </Text>
-            </View>
-          ) : null}
+                  ⚠️ Contains {warningText}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
-    </View>
+    </Animated.View>
+  );
+}
+
+function DayCard({
+  day,
+  _index,
+  selected,
+  isToday,
+  onPress,
+  colors,
+}: {
+  day: { id: string; weekday: string; dateLabel: string };
+  _index: number;
+  selected: boolean;
+  isToday: boolean;
+  onPress: () => void;
+  colors: ReturnType<typeof getColors>;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const dateNum = day.dateLabel.split(' ')[1] ?? '';
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPressIn={() => {
+          Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+        }}
+        onPressOut={() => {
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start();
+        }}
+        onPress={onPress}
+        style={[
+          styles.dayCardTop,
+          {
+            backgroundColor: selected ? colors.brandPrimary : colors.backgroundCard,
+            shadowColor: colors.shadow,
+          },
+          selected && styles.dayCardSelected,
+        ]}
+        accessibilityLabel={`${day.weekday}, ${day.dateLabel}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+      >
+        <Text style={[styles.dayCardTopWeekday, { color: selected ? 'rgba(255,255,255,0.75)' : colors.textSecondary }]}>
+          {day.weekday.slice(0, 3).toUpperCase()}
+        </Text>
+        <Text style={[styles.dayCardTopDate, { color: selected ? '#FFFFFF' : colors.textPrimary }]}>{dateNum}</Text>
+        {isToday && !selected ? (
+          <View style={[styles.todayDot, { backgroundColor: colors.brandPrimary }]} />
+        ) : isToday && selected ? (
+          <View style={[styles.todayDot, { backgroundColor: '#FFFFFF' }]} />
+        ) : null}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -113,6 +187,11 @@ export default function WeeklyScreen() {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const contentFade = useRef(new Animated.Value(1)).current;
   const contentSlide = useRef(new Animated.Value(0)).current;
+  const headerFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(headerFade, { toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [headerFade]);
 
   const baseItemsByName = useMemo(() => {
     const map: Record<string, MenuItem> = {};
@@ -130,10 +209,10 @@ export default function WeeklyScreen() {
 
   const animateContentChange = () => {
     contentFade.setValue(0);
-    contentSlide.setValue(12);
+    contentSlide.setValue(16);
     Animated.parallel([
-      Animated.timing(contentFade, { toValue: 1, duration: 250, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-      Animated.timing(contentSlide, { toValue: 0, duration: 250, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+      Animated.timing(contentFade, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(contentSlide, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
   };
 
@@ -156,7 +235,7 @@ export default function WeeklyScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.backgroundMain }]}>
-      <View style={styles.dayStripContainer}>
+      <Animated.View style={[styles.dayStripContainer, { opacity: headerFade }]}>
         <Pressable
           onPress={handlePrev}
           style={[styles.arrowButton, { opacity: selectedIndex > 0 ? 1 : 0.3 }]}
@@ -165,7 +244,9 @@ export default function WeeklyScreen() {
           accessibilityRole="button"
           hitSlop={8}
         >
-          <ChevronLeft size={22} color={colors.textSecondary} />
+          <View style={[styles.arrowCircle, { backgroundColor: colors.surfaceTimeBlock }]}>
+            <ChevronLeft size={18} color={colors.textSecondary} />
+          </View>
         </Pressable>
         <ScrollView
           horizontal
@@ -175,31 +256,17 @@ export default function WeeklyScreen() {
         >
           {weeklyDays.map((day, index) => {
             const selected = index === selectedIndex;
-            const dateNum = day.dateLabel.split(' ')[1] ?? '';
             const isToday = day.weekday === new Date().toLocaleDateString('en-US', { weekday: 'long' });
             return (
-              <Pressable
+              <DayCard
                 key={day.id}
+                day={day}
+                _index={index}
+                selected={selected}
+                isToday={isToday}
                 onPress={() => handleSelectDay(index)}
-                style={[
-                  styles.dayCardTop,
-                  {
-                    backgroundColor: selected ? colors.brandPrimary : colors.backgroundCard,
-                    shadowColor: colors.shadow,
-                  },
-                ]}
-                accessibilityLabel={`${day.weekday}, ${day.dateLabel}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.dayCardTopWeekday, { color: selected ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
-                  {day.weekday.slice(0, 3).toUpperCase()}
-                </Text>
-                <Text style={[styles.dayCardTopDate, { color: selected ? '#FFFFFF' : colors.textPrimary }]}>{dateNum}</Text>
-                {isToday && !selected ? (
-                  <View style={[styles.todayDot, { backgroundColor: colors.brandPrimary }]} />
-                ) : null}
-              </Pressable>
+                colors={colors}
+              />
             );
           })}
         </ScrollView>
@@ -211,9 +278,11 @@ export default function WeeklyScreen() {
           accessibilityRole="button"
           hitSlop={8}
         >
-          <ChevronRight size={22} color={colors.textSecondary} />
+          <View style={[styles.arrowCircle, { backgroundColor: colors.surfaceTimeBlock }]}>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </View>
         </Pressable>
-      </View>
+      </Animated.View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {selectedDay ? (() => {
@@ -224,17 +293,24 @@ export default function WeeklyScreen() {
           if (isWeekendDay) dayItemsByPeriod.brunch = [...dayItemsByPeriod.breakfast, ...dayItemsByPeriod.lunch];
           return (
             <Animated.View style={{ opacity: contentFade, transform: [{ translateY: contentSlide }] }}>
-              <Text style={[styles.weekTitle, { color: colors.textSecondary }]}>
-                {selectedDay.weekday} · {selectedDay.dateLabel}
-              </Text>
+              <View style={styles.weekTitleRow}>
+                <Text style={[styles.weekTitle, { color: colors.textSecondary }]}>
+                  {selectedDay.weekday} · {selectedDay.dateLabel}
+                </Text>
+              </View>
               {periods.map((period) => {
                 const items = dayItemsByPeriod[period] ?? [];
                 const timeRange = getTimeRangeForPeriod(period, isWeekendDay);
                 return (
                   <View key={period} style={[styles.periodCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
                     <View style={[styles.periodTop, { backgroundColor: colors.surfaceTimeBlock }]}>
-                      <Text style={[styles.periodTitle, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
-                      <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{timeRange}</Text>
+                      <View style={styles.periodTitleRow}>
+                        <Text style={styles.periodEmoji}>{PERIOD_EMOJI[period] ?? '🍽️'}</Text>
+                        <Text style={[styles.periodTitle, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
+                      </View>
+                      <View style={[styles.periodTimeBadge, { backgroundColor: colors.backgroundCard }]}>
+                        <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{timeRange}</Text>
+                      </View>
                     </View>
                     <View style={styles.periodBody}>
                       {items.map((item, i) => {
@@ -255,15 +331,20 @@ export default function WeeklyScreen() {
                               colors={colors}
                               highContrast={highContrastEnabled}
                               allergens={base?.allergens}
+                              index={i}
                             />
                           </View>
                         );
                       })}
                       {items.length === 0 ? (
-                        <View style={styles.periodRowWrap}>
-                          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>No items planned yet.</Text>
+                        <View style={styles.emptyPeriodWrap}>
+                          <Text style={styles.emptyPeriodEmoji}>🍽️</Text>
+                          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>No items planned yet</Text>
                         </View>
                       ) : null}
+                    </View>
+                    <View style={[styles.periodItemCount, { backgroundColor: colors.surfaceTimeBlock }]}>
+                      <Text style={[styles.periodItemCountText, { color: colors.textSecondary }]}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
                     </View>
                   </View>
                 );
@@ -286,11 +367,18 @@ const styles = StyleSheet.create({
   dayStripContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   arrowButton: {
-    width: 36,
+    width: 40,
     height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrowCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -303,23 +391,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   dayCardTop: {
-    minWidth: 50,
+    minWidth: 52,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     ...Platform.select({
       ios: {
         shadowOpacity: 0.06,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
       },
-      android: { elevation: 1 },
+      android: { elevation: 2 },
       web: {
         shadowOpacity: 0.06,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
+      },
+    }),
+  },
+  dayCardSelected: {
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: { elevation: 4 },
+      web: {
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
@@ -347,28 +450,30 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 24,
   },
+  weekTitleRow: {
+    marginBottom: 16,
+  },
   weekTitle: {
     fontSize: 13,
     fontWeight: '600' as const,
     letterSpacing: 0.5,
-    marginBottom: 14,
     textTransform: 'uppercase' as const,
   },
   periodCard: {
     marginBottom: 16,
     overflow: 'hidden' as const,
-    borderRadius: 16,
+    borderRadius: 18,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
@@ -379,22 +484,52 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  periodTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  periodEmoji: {
+    fontSize: 18,
+  },
   periodTitle: {
     fontSize: 17,
     fontWeight: '700' as const,
   },
+  periodTimeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
   periodTime: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
   periodBody: {},
   periodRowWrap: {
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  periodItemCount: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  periodItemCountText: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  emptyPeriodWrap: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    gap: 6,
+  },
+  emptyPeriodEmoji: {
+    fontSize: 24,
+  },
   emptyPeriodText: {
     fontSize: 14,
     textAlign: 'center',
-    paddingVertical: 8,
   },
   menuRow: {
     gap: 0,
@@ -405,9 +540,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   menuEmojiSquare: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },

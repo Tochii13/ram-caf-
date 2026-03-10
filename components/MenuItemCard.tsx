@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from 'react';
 import { Animated, Pressable, Text, View, StyleSheet, Platform } from 'react-native';
-import { AlertTriangle, ChevronRight } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { AlertTriangle, ChevronRight, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import FlowTagList from '@/components/FlowTagList';
 import { useSession } from '@/contexts/SessionContext';
@@ -64,11 +65,12 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
   }, [showCaution, warningText]);
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+    Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start();
   };
 
   const content = (
@@ -90,9 +92,14 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
             {onPress ? <ChevronRight size={16} color={colors.textSecondary} /> : null}
           </View>
           <View style={styles.metaRow}>
-            <Text style={[styles.calories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
-            <View style={[styles.availDot, { backgroundColor: availConfig.color }]} />
-            <Text style={[styles.availText, { color: availConfig.color }]}>{availConfig.label}</Text>
+            <View style={styles.calRow}>
+              <Flame size={12} color={colors.accentGold} />
+              <Text style={[styles.calories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
+            </View>
+            <View style={[styles.availBadge, { backgroundColor: `${availConfig.color}18` }]}>
+              <View style={[styles.availDot, { backgroundColor: availConfig.color }]} />
+              <Text style={[styles.availText, { color: availConfig.color }]}>{availConfig.label}</Text>
+            </View>
           </View>
           <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
           {item.dietaryTags.length > 0 ? (
@@ -160,22 +167,22 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
     marginBottom: 10,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
@@ -187,9 +194,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emojiSquare: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -214,11 +221,24 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 3,
+    gap: 10,
+    marginTop: 4,
+  },
+  calRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   calories: {
     fontSize: 13,
+  },
+  availBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   availDot: {
     width: 6,
@@ -226,8 +246,8 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   availText: {
-    fontSize: 12,
-    fontWeight: '500' as const,
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   description: {
     fontSize: 14,
@@ -253,7 +273,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   warningText: {
     flex: 1,

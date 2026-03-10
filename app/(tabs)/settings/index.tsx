@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Alert, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +21,50 @@ const LANGUAGE_OPTIONS = [
   { key: 'fr', label: 'French' },
   { key: 'ne', label: 'Nepali' },
 ];
+
+function AnimatedRow({ delay, children }: { delay: number; children: React.ReactNode }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [fadeAnim, slideAnim, delay]);
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+function SegmentButton({ label, selected, onPress, colors }: { label: string; selected: boolean; onPress: () => void; colors: ReturnType<typeof getColors> }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  return (
+    <Animated.View style={[{ flex: 1, transform: [{ scale: scaleAnim }] }]}>
+      <Pressable
+        onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true, speed: 50, bounciness: 4 }).start()}
+        onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start()}
+        onPress={onPress}
+        style={[
+          styles.segmentButton,
+          { backgroundColor: selected ? colors.brandPrimary : colors.surfaceTimeBlock },
+        ]}
+        accessibilityLabel={`${label}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+      >
+        <Text style={[styles.segmentText, { color: selected ? '#FFFFFF' : colors.textSecondary }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function SettingsScreen() {
   const {
@@ -46,11 +90,15 @@ export default function SettingsScreen() {
   const [notifMealAlerts, setNotifMealAlerts] = useState<boolean>(false);
   const [showQuiz, setShowQuiz] = useState<boolean>(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const avatarScale = useRef(new Animated.Value(0.7)).current;
+  const avatarOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+    Animated.parallel([
+      Animated.spring(avatarScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+      Animated.timing(avatarOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+    ]).start();
+  }, [avatarScale, avatarOpacity]);
 
   const dietarySummary = useMemo(() => {
     if (effectiveDietaryTags.length === 0) return 'No preferences set';
@@ -82,11 +130,11 @@ export default function SettingsScreen() {
   return (
     <>
       <ScrollView style={[styles.scroll, { backgroundColor: colors.backgroundMain }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View style={{ opacity: fadeAnim }}>
+        <AnimatedRow delay={0}>
           <View style={[styles.profileCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
-            <View style={[styles.avatar, { backgroundColor: colors.brandPrimary }]}>
+            <Animated.View style={[styles.avatar, { backgroundColor: colors.brandPrimary, opacity: avatarOpacity, transform: [{ scale: avatarScale }] }]}>
               <Text style={styles.avatarText}>{currentUser?.name?.charAt(0)?.toUpperCase() ?? 'U'}</Text>
-            </View>
+            </Animated.View>
             <Text style={[styles.profileName, { color: colors.textPrimary }]}>{currentUser?.name ?? 'User'}</Text>
             <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{currentUser?.email ?? ''}</Text>
             <View style={[styles.roleBadge, { backgroundColor: colors.brandPrimaryLight }]}>
@@ -94,7 +142,9 @@ export default function SettingsScreen() {
             </View>
             <Text style={[styles.profileDietary, { color: colors.textSecondary }]}>{dietarySummary}</Text>
           </View>
+        </AnimatedRow>
 
+        <AnimatedRow delay={100}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>DISPLAY</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <View style={styles.settingRow}>
@@ -105,22 +155,16 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.segmentRow}>
               {APPEARANCE_OPTIONS.map((opt) => (
-                <Pressable
+                <SegmentButton
                   key={opt.key}
+                  label={opt.label}
+                  selected={appearanceMode === opt.key}
                   onPress={() => {
                     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setAppearanceMode(opt.key);
                   }}
-                  style={[
-                    styles.segmentButton,
-                    { backgroundColor: appearanceMode === opt.key ? colors.brandPrimary : colors.surfaceTimeBlock },
-                  ]}
-                  accessibilityLabel={`${opt.label} appearance`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: appearanceMode === opt.key }}
-                >
-                  <Text style={[styles.segmentText, { color: appearanceMode === opt.key ? '#FFFFFF' : colors.textSecondary }]}>{opt.label}</Text>
-                </Pressable>
+                  colors={colors}
+                />
               ))}
             </View>
 
@@ -178,23 +222,19 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.segmentRow}>
               {LANGUAGE_OPTIONS.map((opt) => (
-                <Pressable
+                <SegmentButton
                   key={opt.key}
+                  label={opt.label}
+                  selected={appLanguage === opt.key}
                   onPress={() => handleLanguageChange(opt.key)}
-                  style={[
-                    styles.segmentButton,
-                    { backgroundColor: appLanguage === opt.key ? colors.brandPrimary : colors.surfaceTimeBlock },
-                  ]}
-                  accessibilityLabel={`${opt.label} language`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: appLanguage === opt.key }}
-                >
-                  <Text style={[styles.segmentText, { color: appLanguage === opt.key ? '#FFFFFF' : colors.textSecondary }]}>{opt.label}</Text>
-                </Pressable>
+                  colors={colors}
+                />
               ))}
             </View>
           </View>
+        </AnimatedRow>
 
+        <AnimatedRow delay={200}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PREFERENCES & ALLERGIES</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <Pressable
@@ -245,7 +285,9 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </View>
+        </AnimatedRow>
 
+        <AnimatedRow delay={300}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <View style={styles.toggleRow}>
@@ -288,7 +330,9 @@ export default function SettingsScreen() {
               <Switch value={notifMealAlerts} onValueChange={(v) => handleNotificationToggle(setNotifMealAlerts, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
           </View>
+        </AnimatedRow>
 
+        <AnimatedRow delay={400}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ACCOUNT</Text>
           <Pressable
             onPress={handleLogout}
@@ -302,9 +346,9 @@ export default function SettingsScreen() {
             </View>
             <Text style={[styles.logoutText, { color: colors.destructive }]}>Log Out</Text>
           </Pressable>
+        </AnimatedRow>
 
-          <View style={styles.bottomPad} />
-        </Animated.View>
+        <View style={styles.bottomPad} />
       </ScrollView>
       <Modal visible={showQuiz} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setShowQuiz(false)}>
         <View style={[styles.modalShell, { backgroundColor: colors.backgroundMain }]}>
@@ -329,33 +373,33 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 5 },
       },
-      android: { elevation: 3 },
+      android: { elevation: 4 },
       web: {
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 5 },
       },
     }),
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700' as const,
   },
   profileName: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700' as const,
     letterSpacing: -0.3,
   },
@@ -364,10 +408,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   roleBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 10,
+    marginTop: 12,
   },
   roleBadgeText: {
     fontSize: 13,
@@ -375,7 +419,7 @@ const styles = StyleSheet.create({
   },
   profileDietary: {
     fontSize: 13,
-    marginTop: 10,
+    marginTop: 12,
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -387,20 +431,20 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   sectionCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 24,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
@@ -411,9 +455,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   settingIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -427,9 +471,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   segmentButton: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: 12,
+    minHeight: 42,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -455,7 +498,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 48,
+    minHeight: 50,
   },
   toggleLeft: {
     flexDirection: 'row',
@@ -475,7 +518,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 48,
+    minHeight: 50,
   },
   navRowLeft: {
     flexDirection: 'row',
@@ -491,7 +534,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   logoutCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -499,15 +542,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },

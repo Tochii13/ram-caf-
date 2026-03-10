@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, View, Platform } from 'react-native';
-import { AlertTriangle } from 'lucide-react-native';
+import { Animated, Easing, ScrollView, StyleSheet, Text, View, Platform } from 'react-native';
+import { AlertTriangle, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import FlowTagList from '@/components/FlowTagList';
 import { useSession } from '@/contexts/SessionContext';
@@ -32,6 +32,28 @@ interface MenuItemDetailViewProps {
   item: MenuItem;
 }
 
+function NutritionBar({ label, value, icon, delay, colors }: { label: string; value: string; icon: string; delay: number; colors: ReturnType<typeof getColors> }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(10)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 350, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [fadeAnim, slideAnim, delay]);
+
+  return (
+    <Animated.View style={[styles.nutritionItem, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <View style={[styles.nutritionIconWrap, { backgroundColor: colors.surfaceTimeBlock }]}>
+        <Text style={styles.nutritionIcon}>{icon}</Text>
+      </View>
+      <Text style={[styles.nutritionValue, { color: colors.textPrimary }]}>{value}</Text>
+      <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{label}</Text>
+    </Animated.View>
+  );
+}
+
 export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
   const { effectiveDietaryTags, resolvedColorScheme, highContrastEnabled } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
@@ -41,15 +63,22 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
-  const emojiScale = useRef(new Animated.Value(0.6)).current;
+  const emojiScale = useRef(new Animated.Value(0.5)).current;
+  const emojiRotate = useRef(new Animated.Value(-0.05)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-      Animated.spring(emojiScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.spring(emojiScale, { toValue: 1, friction: 5, tension: 70, useNativeDriver: true }),
+      Animated.timing(emojiRotate, { toValue: 0, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
-  }, [fadeAnim, slideAnim, emojiScale]);
+  }, [fadeAnim, slideAnim, emojiScale, emojiRotate]);
+
+  const rotateInterpolation = emojiRotate.interpolate({
+    inputRange: [-0.05, 0],
+    outputRange: ['-5deg', '0deg'],
+  });
 
   const nutritionData = [
     { label: 'Calories', value: `${item.calories}`, icon: '🔥' },
@@ -66,7 +95,7 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={[styles.heroSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <Animated.View style={[styles.emojiContainer, { backgroundColor: colors.surfaceTimeBlock, transform: [{ scale: emojiScale }] }]}>
+        <Animated.View style={[styles.emojiContainer, { backgroundColor: colors.surfaceTimeBlock, transform: [{ scale: emojiScale }, { rotate: rotateInterpolation }] }]}>
           <Text style={styles.emoji} accessible={false}>{item.emoji}</Text>
         </Animated.View>
 
@@ -77,9 +106,10 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
             <Text style={[styles.periodChipText, { color: colors.brandPrimary }]}>{MEAL_PERIOD_LABELS[item.mealPeriod]}</Text>
           </View>
           <View style={[styles.calChip, { backgroundColor: colors.accentGoldLight }]}>
+            <Flame size={12} color={colors.accentGold} />
             <Text style={[styles.calChipText, { color: colors.accentGold }]}>{item.calories} cal</Text>
           </View>
-          <View style={styles.availRow}>
+          <View style={[styles.availChip, { backgroundColor: `${availConfig.color}18` }]}>
             <View style={[styles.availDot, { backgroundColor: availConfig.color }]} />
             <Text style={[styles.availText, { color: availConfig.color }]}>{availConfig.label}</Text>
           </View>
@@ -112,7 +142,7 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
       ) : null}
 
       {conflicts.length > 0 ? (
-        <View style={[styles.allergenCard, { backgroundColor: 'rgba(230,126,34,0.08)' }]}>
+        <View style={[styles.allergenCard, { backgroundColor: 'rgba(230,126,34,0.08)', borderLeftColor: '#E67E22', borderLeftWidth: 3 }]}>
           <View style={styles.allergenRow}>
             <View style={[styles.allergenIcon, { backgroundColor: 'rgba(230,126,34,0.15)' }]}>
               <AlertTriangle size={16} color="#E67E22" />
@@ -131,16 +161,14 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Nutrition Facts</Text>
         <View style={styles.nutritionGrid}>
           {nutritionData.map((row, i) => (
-            <View key={row.label} style={[
-              styles.nutritionRow,
-              i < nutritionData.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle },
-            ]}>
-              <View style={styles.nutritionLabelRow}>
-                <Text style={styles.nutritionIcon}>{row.icon}</Text>
-                <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{row.label}</Text>
-              </View>
-              <Text style={[styles.nutritionValue, { color: colors.textPrimary }]}>{row.value}</Text>
-            </View>
+            <NutritionBar
+              key={row.label}
+              label={row.label}
+              value={row.value}
+              icon={row.icon}
+              delay={400 + i * 80}
+              colors={colors}
+            />
           ))}
         </View>
       </View>
@@ -174,7 +202,7 @@ const styles = StyleSheet.create({
   emojiContainer: {
     width: 110,
     height: 110,
-    borderRadius: 28,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -210,12 +238,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   calChipText: {
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  availRow: {
+  availChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -285,27 +319,27 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 18,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: 18,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700' as const,
-    marginBottom: 14,
+    marginBottom: 16,
     letterSpacing: -0.2,
   },
   sectionBody: {
@@ -313,28 +347,37 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   nutritionGrid: {
-    gap: 0,
-  },
-  nutritionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
   },
-  nutritionLabelRow: {
-    flexDirection: 'row',
+  nutritionItem: {
     alignItems: 'center',
-    gap: 8,
+    minWidth: 60,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    flex: 1,
+  },
+  nutritionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   nutritionIcon: {
-    fontSize: 16,
-  },
-  nutritionLabel: {
-    fontSize: 15,
+    fontSize: 18,
   },
   nutritionValue: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700' as const,
+    marginBottom: 2,
+  },
+  nutritionLabel: {
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
   updatedText: {
     fontSize: 12,

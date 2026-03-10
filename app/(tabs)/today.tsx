@@ -3,7 +3,7 @@ import { Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, T
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, Clock, Search, Star, X } from 'lucide-react-native';
+import { ChevronRight, Clock, Search, Star, X, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import FlowTagList from '@/components/FlowTagList';
 import MenuItemCard from '@/components/MenuItemCard';
@@ -126,17 +126,48 @@ function getUnratedPeriod(ratedPeriods: Set<string>): MealPeriod | null {
   }) ?? null;
 }
 
-function RecommendationCard({ item, colors, highContrast }: { item: MenuItem; colors: ReturnType<typeof getColors>; highContrast: boolean }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+function AnimatedSection({ delay, children }: { delay: number; children: React.ReactNode }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(18)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [fadeAnim, slideAnim, delay]);
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+function RecommendationCard({ item, colors, highContrast, index }: { item: MenuItem; colors: ReturnType<typeof getColors>; highContrast: boolean; index: number }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, delay: index * 100, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, delay: index * 100, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [fadeAnim, slideAnim, index]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: fadeAnim }}>
       <Pressable
         onPressIn={() => {
-          Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+          Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }}
         onPressOut={() => {
-          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start();
         }}
       >
         <View style={[styles.recommendationCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
@@ -145,7 +176,10 @@ function RecommendationCard({ item, colors, highContrast }: { item: MenuItem; co
             <Text style={styles.recommendationEmoji}>{item.emoji}</Text>
           </View>
           <Text style={[styles.recommendationName, { color: colors.textPrimary }]} numberOfLines={2}>{item.name}</Text>
-          <Text style={[styles.recommendationCalories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
+          <View style={styles.recommendationCalRow}>
+            <Flame size={12} color={colors.accentGold} />
+            <Text style={[styles.recommendationCalories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
+          </View>
           <FlowTagList style={styles.recommendationTagsWrap}>
             {item.dietaryTags.slice(0, 2).map((tag) => (
               <View key={tag} style={[styles.recommendationTagPill, highContrast ? { backgroundColor: colors.brandPrimary } : { backgroundColor: colors.brandPrimaryMedium }]}>
@@ -158,6 +192,28 @@ function RecommendationCard({ item, colors, highContrast }: { item: MenuItem; co
         </View>
       </Pressable>
     </Animated.View>
+  );
+}
+
+function PulsingDot({ color }: { color: string }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.6, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulseAnim]);
+
+  return (
+    <View style={styles.pulsingDotContainer}>
+      <Animated.View style={[styles.pulsingDotOuter, { backgroundColor: color, opacity: 0.3, transform: [{ scale: pulseAnim }] }]} />
+      <View style={[styles.pulsingDotInner, { backgroundColor: color }]} />
+    </View>
   );
 }
 
@@ -244,6 +300,42 @@ function RatingSheetView({
   );
 }
 
+function FilterChip({ label, selected, onPress, colors, testID }: { label: string; selected: boolean; onPress: () => void; colors: ReturnType<typeof getColors>; testID: string }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const bgAnim = useRef(new Animated.Value(selected ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(bgAnim, { toValue: selected ? 1 : 0, duration: 200, useNativeDriver: false }).start();
+  }, [selected, bgAnim]);
+
+  const backgroundColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.backgroundCard, colors.brandPrimary],
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPressIn={() => {
+          Animated.spring(scaleAnim, { toValue: 0.92, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
+        }}
+        onPressOut={() => {
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start();
+        }}
+        onPress={onPress}
+        testID={testID}
+        accessibilityLabel={`${label} filter`}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+      >
+        <Animated.View style={[styles.chip, { backgroundColor, shadowColor: selected ? 'transparent' : colors.shadow }]}>
+          <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : colors.textSecondary }]}>{label}</Text>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -261,18 +353,14 @@ export default function TodayScreen() {
   const cafeHours = getCafeHoursForToday();
 
   const greetingFade = useRef(new Animated.Value(0)).current;
-  const greetingSlide = useRef(new Animated.Value(-15)).current;
-  const contentFade = useRef(new Animated.Value(0)).current;
+  const greetingSlide = useRef(new Animated.Value(-20)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(greetingFade, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.timing(greetingSlide, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      ]),
-      Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+    Animated.parallel([
+      Animated.timing(greetingFade, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(greetingSlide, { toValue: 0, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
-  }, [greetingFade, greetingSlide, contentFade]);
+  }, [greetingFade, greetingSlide]);
 
   const isWeekend = useMemo(() => {
     const day = new Date().getDay();
@@ -357,6 +445,8 @@ export default function TodayScreen() {
     setFilter(key);
   }, []);
 
+  const searchBarScale = useRef(new Animated.Value(1)).current;
+
   return (
     <>
       <ScrollView style={[styles.scroll, { backgroundColor: colors.backgroundMain }]} contentContainerStyle={[styles.scrollContent, { paddingTop: 16 + Math.max(insets.top, 12) }]} showsVerticalScrollIndicator={false}>
@@ -365,26 +455,32 @@ export default function TodayScreen() {
           <Text style={[styles.dateSubline, { color: colors.textSecondary, fontSize: 15 * textSizeMultiplier }]}>{getDayName()}</Text>
         </Animated.View>
 
-        <Animated.View style={{ opacity: contentFade }}>
-          <View style={[styles.searchBar, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
-            <Search size={18} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search menu items..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              accessibilityLabel="Search menu items"
-              testID="menu-search-input"
-            />
-            {isSearching ? (
-              <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
-                <X size={18} color={colors.textSecondary} />
-              </Pressable>
-            ) : null}
-          </View>
+        <AnimatedSection delay={100}>
+          <Animated.View style={{ transform: [{ scale: searchBarScale }] }}>
+            <View style={[styles.searchBar, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
+              <Search size={18} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.textPrimary }]}
+                placeholder="Search menu items..."
+                placeholderTextColor={colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onFocus={() => Animated.spring(searchBarScale, { toValue: 1.02, useNativeDriver: true, speed: 50, bounciness: 6 }).start()}
+                onBlur={() => Animated.spring(searchBarScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 4 }).start()}
+                accessibilityLabel="Search menu items"
+                testID="menu-search-input"
+              />
+              {isSearching ? (
+                <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
+                  <X size={18} color={colors.textSecondary} />
+                </Pressable>
+              ) : null}
+            </View>
+          </Animated.View>
+        </AnimatedSection>
 
-          {isSearching ? (
+        {isSearching ? (
+          <AnimatedSection delay={0}>
             <View style={styles.searchResults}>
               {searchResults.length === 0 ? (
                 <View style={styles.emptySearch}>
@@ -397,11 +493,16 @@ export default function TodayScreen() {
                 ))
               )}
             </View>
-          ) : (
-            <>
-              {firstAnnouncement ? (
+          </AnimatedSection>
+        ) : (
+          <>
+            {firstAnnouncement ? (
+              <AnimatedSection delay={180}>
                 <Pressable
-                  onPress={() => router.push('/announcements')}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/announcements');
+                  }}
                   testID="announcement-banner"
                   accessibilityLabel={`Announcement: ${firstAnnouncement.title}.`}
                   accessibilityHint="Tap to view all announcements."
@@ -420,37 +521,43 @@ export default function TodayScreen() {
                     </View>
                   </View>
                 </Pressable>
-              ) : null}
+              </AnimatedSection>
+            ) : null}
 
+            <AnimatedSection delay={260}>
               <View style={[styles.hoursCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
                 <View style={styles.hoursHeader}>
                   <View style={styles.hoursHeaderLeft}>
-                    <Clock size={18} color={colors.brandPrimary} />
+                    <View style={[styles.hoursIconWrap, { backgroundColor: colors.brandPrimaryLight }]}>
+                      <Clock size={16} color={colors.brandPrimary} />
+                    </View>
                     <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Today&apos;s Hours</Text>
                   </View>
                   {isAnyPeriodOpen ? (
                     <View style={[styles.openBadge, { backgroundColor: colors.accentGreen }]}>
-                      <View style={styles.openBadgeDot} />
-                      <Text style={styles.openBadgeText} accessibilityLabel="Open Now">Open Now</Text>
+                      <PulsingDot color="#FFFFFF" />
+                      <Text style={styles.openBadgeText} accessibilityLabel="Open Now">Open</Text>
                     </View>
                   ) : null}
                 </View>
-                {cafeHours.map((period) => (
+                {cafeHours.map((period, i) => (
                   <View
                     key={period.mealPeriod}
-                    style={[styles.hourRow, { borderBottomColor: colors.borderSubtle }]}
+                    style={[styles.hourRow, i < cafeHours.length - 1 && { borderBottomColor: colors.borderSubtle, borderBottomWidth: 0.5 }]}
                     accessibilityLabel={`${MEAL_PERIOD_LABELS[period.mealPeriod]}. ${period.startTime} to ${period.endTime}. ${period.isOpenNow ? 'Open now.' : 'Closed.'}`}
                   >
-                    <View style={[styles.periodPill, { backgroundColor: colors.surfaceTimeBlock }]}>
-                      <Text style={[styles.periodPillText, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period.mealPeriod]}</Text>
+                    <View style={[styles.periodPill, { backgroundColor: period.isOpenNow ? colors.accentGreenLight : colors.surfaceTimeBlock }]}>
+                      <Text style={[styles.periodPillText, { color: period.isOpenNow ? colors.accentGreen : colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period.mealPeriod]}</Text>
                     </View>
                     <Text style={[styles.timeRange, { color: colors.textSecondary }]}>{period.startTime} – {period.endTime}</Text>
                     {period.isOpenNow ? <View style={[styles.openDot, { backgroundColor: colors.accentGreen }]} /> : null}
                   </View>
                 ))}
               </View>
+            </AnimatedSection>
 
-              <View style={[styles.countdownCard, { backgroundColor: colors.brandPrimaryLight }]}>
+            <AnimatedSection delay={340}>
+              <View style={[styles.countdownCard, { backgroundColor: colors.brandPrimaryLight, borderLeftColor: colors.brandPrimary, borderLeftWidth: 3 }]}>
                 <Clock size={16} color={colors.brandPrimary} />
                 <Text
                   style={[styles.countdownText, { color: colors.textPrimary }]}
@@ -461,8 +568,10 @@ export default function TodayScreen() {
                   {countdownMessage.highlight ? <Text style={[styles.countdownHighlight, { color: colors.brandPrimary }]}>{countdownMessage.highlight}</Text> : null}
                 </Text>
               </View>
+            </AnimatedSection>
 
-              {unratedPeriod ? (
+            {unratedPeriod ? (
+              <AnimatedSection delay={400}>
                 <Pressable
                   onPress={() => {
                     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -473,8 +582,7 @@ export default function TodayScreen() {
                   accessibilityHint={`Opens the rating screen for today's ${MEAL_PERIOD_LABELS[unratedPeriod].toLowerCase()} items.`}
                   accessibilityRole="button"
                 >
-                  <View style={[styles.ratingBanner, { backgroundColor: colors.accentGoldLight }]}>
-                    <View style={[styles.ratingBannerAccent, { backgroundColor: colors.accentGold }]} accessible={false} />
+                  <View style={[styles.ratingBanner, { backgroundColor: colors.accentGoldLight, borderLeftColor: colors.accentGold, borderLeftWidth: 3 }]}>
                     <View style={styles.ratingBannerInner}>
                       <Star size={20} color={colors.accentGold} fill={colors.accentGold} />
                       <Text style={[styles.ratingBannerText, { color: colors.textPrimary }]}>
@@ -484,56 +592,57 @@ export default function TodayScreen() {
                     </View>
                   </View>
                 </Pressable>
-              ) : null}
+              </AnimatedSection>
+            ) : null}
 
-              {pickedForYou.length > 0 ? (
+            {pickedForYou.length > 0 ? (
+              <AnimatedSection delay={460}>
                 <View style={styles.pickedSection}>
-                  <Text style={[styles.pickedTitle, { color: colors.textPrimary }]}>Picked for You</Text>
+                  <View style={styles.pickedHeader}>
+                    <Text style={[styles.pickedTitle, { color: colors.textPrimary }]}>Picked for You</Text>
+                    <View style={[styles.pickedBadge, { backgroundColor: colors.brandPrimaryLight }]}>
+                      <Text style={[styles.pickedBadgeText, { color: colors.brandPrimary }]}>✨ Personalized</Text>
+                    </View>
+                  </View>
                   <Text style={[styles.pickedSubtitle, { color: colors.textSecondary }]}>Based on your dietary preferences</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendationRow}>
-                    {pickedForYou.map((item) => (
-                      <RecommendationCard key={item.id} item={item} colors={colors} highContrast={highContrastEnabled} />
+                    {pickedForYou.map((item, index) => (
+                      <RecommendationCard key={item.id} item={item} colors={colors} highContrast={highContrastEnabled} index={index} />
                     ))}
                   </ScrollView>
                 </View>
-              ) : null}
+              </AnimatedSection>
+            ) : null}
 
+            <AnimatedSection delay={540}>
               <View style={styles.menuHeader}>
                 <Text style={[styles.menuSectionTitle, { color: colors.textPrimary, fontSize: 20 * textSizeMultiplier }]}>Today&apos;s Menu</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
-                {filtersForToday.map((f) => {
-                  const selected = filter === f.key;
-                  return (
-                    <Pressable
-                      key={f.key}
-                      onPress={() => handleFilterPress(f.key)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: selected ? colors.brandPrimary : colors.backgroundCard,
-                          shadowColor: selected ? 'transparent' : colors.shadow,
-                        },
-                      ]}
-                      testID={`filter-${f.key}`}
-                      accessibilityLabel={`${f.label} filter`}
-                      accessibilityHint={selected ? 'Currently selected.' : `Tap to show ${f.label} items only.`}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                    >
-                      <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : colors.textSecondary }]}>{f.label}</Text>
-                    </Pressable>
-                  );
-                })}
+                {filtersForToday.map((f) => (
+                  <FilterChip
+                    key={f.key}
+                    label={f.label}
+                    selected={filter === f.key}
+                    onPress={() => handleFilterPress(f.key)}
+                    colors={colors}
+                    testID={`filter-${f.key}`}
+                  />
+                ))}
               </ScrollView>
+            </AnimatedSection>
 
+            <AnimatedSection delay={620}>
               {visiblePeriods.map((period) => {
                 const items = menuByPeriod[period];
                 if (items.length === 0) return null;
                 return (
                   <View key={period} style={styles.periodSection}>
                     <View style={styles.periodHeader}>
-                      <Text style={[styles.periodName, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
+                      <View style={styles.periodNameRow}>
+                        <View style={[styles.periodDot, { backgroundColor: colors.brandPrimary }]} />
+                        <Text style={[styles.periodName, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
+                      </View>
                       <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{getTimeRangeForPeriod(period, isWeekend)}</Text>
                     </View>
                     {items.map((item) => (
@@ -542,11 +651,11 @@ export default function TodayScreen() {
                   </View>
                 );
               })}
-            </>
-          )}
+            </AnimatedSection>
+          </>
+        )}
 
-          <View style={styles.bottomPad} />
-        </Animated.View>
+        <View style={styles.bottomPad} />
       </ScrollView>
 
       <RatingSheetView visible={showRatingSheet} mealPeriod={unratedPeriod} items={ratingItems} onSubmit={handleSubmitRatings} onSkip={handleSkipRatings} />
@@ -554,8 +663,8 @@ export default function TodayScreen() {
       <Modal visible={selectedItem !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedItem(null)}>
         <View style={[styles.detailModalShell, { backgroundColor: colors.backgroundMain }]}>
           <View style={[styles.detailModalHeader, { borderBottomColor: colors.borderSubtle }]}>
-            <Pressable onPress={() => setSelectedItem(null)} accessibilityLabel="Close details" accessibilityRole="button" style={({ pressed }) => [styles.detailCloseButton, pressed && { opacity: 0.6 }]}>
-              <X size={20} color={colors.textPrimary} />
+            <Pressable onPress={() => setSelectedItem(null)} accessibilityLabel="Close details" accessibilityRole="button" style={({ pressed }) => [styles.detailCloseButton, { backgroundColor: colors.surfaceTimeBlock }, pressed && { opacity: 0.6 }]}>
+              <X size={18} color={colors.textPrimary} />
             </Pressable>
             <Text style={[styles.detailModalTitle, { color: colors.textPrimary }]}>Details</Text>
             <View style={styles.detailHeaderSpacer} />
@@ -576,7 +685,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   greetingSection: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   greeting: {
     fontSize: 28,
@@ -590,29 +699,29 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 14,
     marginBottom: 16,
     gap: 10,
-    minHeight: 48,
+    minHeight: 50,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
       web: {
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   searchResults: {
     marginBottom: 16,
@@ -627,7 +736,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   announcementCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
@@ -638,8 +747,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   announcementIcon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -659,20 +768,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   hoursCard: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
     marginBottom: 14,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
@@ -685,37 +794,54 @@ const styles = StyleSheet.create({
   hoursHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  hoursIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
   },
   openBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
-    gap: 5,
-  },
-  openBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
+    gap: 6,
   },
   openBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700' as const,
   },
+  pulsingDotContainer: {
+    width: 8,
+    height: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulsingDotOuter: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pulsingDotInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   hourRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 11,
     gap: 10,
-    borderBottomWidth: 0.5,
   },
   periodPill: {
     paddingHorizontal: 12,
@@ -726,7 +852,7 @@ const styles = StyleSheet.create({
   },
   periodPillText: {
     fontSize: 14,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
   },
   timeRange: {
     fontSize: 14,
@@ -759,19 +885,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden' as const,
     borderRadius: 14,
   },
-  ratingBannerAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-  },
   ratingBannerInner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    paddingLeft: 14,
     gap: 10,
   },
   ratingBannerText: {
@@ -780,12 +898,26 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
   pickedSection: {
-    marginBottom: 20,
+    marginBottom: 22,
+  },
+  pickedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   pickedTitle: {
     fontSize: 19,
     fontWeight: '700' as const,
     letterSpacing: -0.2,
+  },
+  pickedBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pickedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   pickedSubtitle: {
     fontSize: 13,
@@ -797,23 +929,23 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   recommendationCard: {
-    width: 165,
-    minHeight: 190,
+    width: 170,
+    minHeight: 200,
     padding: 14,
     alignItems: 'center',
     overflow: 'hidden' as const,
-    borderRadius: 16,
+    borderRadius: 18,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
-      android: { elevation: 2 },
+      android: { elevation: 3 },
       web: {
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
       },
     }),
   },
@@ -823,18 +955,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
   },
   recommendationEmojiWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 14,
   },
   recommendationEmoji: {
-    fontSize: 24,
+    fontSize: 26,
   },
   recommendationName: {
     textAlign: 'center',
@@ -843,8 +977,13 @@ const styles = StyleSheet.create({
     minHeight: 40,
     letterSpacing: -0.2,
   },
-  recommendationCalories: {
+  recommendationCalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 4,
+  },
+  recommendationCalories: {
     fontSize: 13,
   },
   recommendationTagsWrap: {
@@ -880,22 +1019,22 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   chip: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 22,
-    minHeight: 40,
+    borderRadius: 24,
+    minHeight: 42,
     justifyContent: 'center',
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
       },
-      android: { elevation: 1 },
+      android: { elevation: 2 },
       web: {
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
       },
     }),
   },
@@ -904,18 +1043,30 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   periodSection: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   periodHeader: {
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  periodNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  periodDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   periodName: {
     fontSize: 17,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
   },
   periodTime: {
     fontSize: 13,
-    marginTop: 2,
   },
   bottomPad: {
     height: 24,

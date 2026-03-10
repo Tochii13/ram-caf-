@@ -1,13 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Check, CheckCircle2 } from 'lucide-react-native';
+import { Check, CheckCircle2, Sparkles } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
 import { useSession } from '@/contexts/SessionContext';
 import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, DietaryTag, Allergen, ALLERGEN_LABELS } from '@/types';
 
 const ALL_DIETARY_TAGS: DietaryTag[] = ['vegetarian', 'vegan', 'glutenFree', 'highProtein', 'dairyFree', 'nutFree', 'halal'];
 const ALL_ALLERGENS: Allergen[] = ['nuts', 'dairy', 'shellfish', 'gluten', 'soy', 'eggs', 'pork'];
+
+const ALLERGEN_EMOJIS: Record<string, string> = {
+  nuts: '🥜',
+  dairy: '🥛',
+  shellfish: '🦐',
+  gluten: '🌾',
+  soy: '🫘',
+  eggs: '🥚',
+  pork: '🥓',
+};
 
 interface OnboardingFlowProps {
   isRerun?: boolean;
@@ -27,8 +37,8 @@ function DietaryOptionRow({ tag, selected, onPress, colors }: { tag: DietaryTag;
   const handlePress = () => {
     if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.sequence([
-      Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 6 }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }),
+      Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 6 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 10 }),
     ]).start();
     onPress();
   };
@@ -61,6 +71,68 @@ function DietaryOptionRow({ tag, selected, onPress, colors }: { tag: DietaryTag;
   );
 }
 
+function AllergenOptionRow({ allergen, selected, onPress, colors }: { allergen: Allergen; selected: boolean; onPress: () => void; colors: ReturnType<typeof getColors> }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePress = () => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.sequence([
+      Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 50, bounciness: 6 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 10 }),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={handlePress}
+        style={[
+          styles.preferenceRow,
+          { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle },
+          selected && { borderColor: colors.brandPrimary, borderWidth: 2, backgroundColor: colors.brandPrimaryLight },
+        ]}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: selected }}
+      >
+        <Text style={styles.preferenceEmoji}>{ALLERGEN_EMOJIS[allergen] ?? '⚠️'}</Text>
+        <Text style={[styles.preferenceLabel, { color: colors.textPrimary }]}>{ALLERGEN_LABELS[allergen]}</Text>
+        {selected ? (
+          <View style={[styles.checkCircle, { backgroundColor: colors.brandPrimary }]}>
+            <Check size={14} color="#FFFFFF" />
+          </View>
+        ) : (
+          <View style={[styles.checkCircleEmpty, { borderColor: colors.borderSubtle }]} />
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function ProgressBar({ step, totalSteps, colors }: { step: number; totalSteps: number; colors: ReturnType<typeof getColors> }) {
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: (step + 1) / totalSteps,
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [progressAnim, step, totalSteps]);
+
+  const width = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View style={[styles.progressBarTrack, { backgroundColor: colors.borderSubtle }]}>
+      <Animated.View style={[styles.progressBarFill, { backgroundColor: colors.brandPrimary, width }]} />
+    </View>
+  );
+}
+
 export default function OnboardingFlow({ isRerun = false, onComplete }: OnboardingFlowProps) {
   const { currentUser, completeOnboarding, resolvedColorScheme, highContrastEnabled } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
@@ -69,8 +141,9 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
   const [selectedAllergies, setSelectedAllergies] = useState<Allergen[]>(currentUser?.profile?.allergies ?? []);
   const [otherAllergiesText, setOtherAllergiesText] = useState<string>(() => (currentUser?.profile?.otherAllergies ?? []).join(', '));
   const [otherDietaryText, setOtherDietaryText] = useState<string>(() => (currentUser?.profile?.otherDietaryRestrictions ?? []).join(', '));
-  const welcomeScale = useRef(new Animated.Value(0.85)).current;
-  const finalScale = useRef(new Animated.Value(0.5)).current;
+  const welcomeScale = useRef(new Animated.Value(0.7)).current;
+  const welcomeOpacity = useRef(new Animated.Value(0)).current;
+  const finalScale = useRef(new Animated.Value(0.4)).current;
   const finalOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(1)).current;
   const contentTranslate = useRef(new Animated.Value(0)).current;
@@ -78,27 +151,31 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
   const firstName = useMemo(() => getFirstName(currentUser?.name), [currentUser?.name]);
 
   useEffect(() => {
-    contentOpacity.setValue(0.25);
-    contentTranslate.setValue(16);
+    contentOpacity.setValue(0.2);
+    contentTranslate.setValue(20);
     Animated.parallel([
-      Animated.timing(contentOpacity, { toValue: 1, duration: 260, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-      Animated.timing(contentTranslate, { toValue: 0, duration: 260, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+      Animated.timing(contentOpacity, { toValue: 1, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(contentTranslate, { toValue: 0, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
 
     if (step === 0) {
-      welcomeScale.setValue(0.85);
-      Animated.spring(welcomeScale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }).start();
+      welcomeScale.setValue(0.7);
+      welcomeOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(welcomeScale, { toValue: 1, friction: 5, tension: 70, useNativeDriver: true }),
+        Animated.timing(welcomeOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]).start();
     }
 
     if (step === 3) {
-      finalScale.setValue(0.5);
+      finalScale.setValue(0.4);
       finalOpacity.setValue(0);
       Animated.parallel([
-        Animated.spring(finalScale, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }),
-        Animated.timing(finalOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.spring(finalScale, { toValue: 1, friction: 5, tension: 70, useNativeDriver: true }),
+        Animated.timing(finalOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
       ]).start();
     }
-  }, [contentOpacity, contentTranslate, finalOpacity, finalScale, step, welcomeScale]);
+  }, [contentOpacity, contentTranslate, finalOpacity, finalScale, step, welcomeScale, welcomeOpacity]);
 
   const toggleAllergen = (allergen: Allergen) => {
     setSelectedAllergies((prev) => (prev.includes(allergen) ? prev.filter((a) => a !== allergen) : [...prev, allergen]));
@@ -110,33 +187,44 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
   };
 
   const handleFinish = () => {
+    if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const otherA = otherAllergiesText.trim() ? otherAllergiesText.split(',').map((s) => s.trim()).filter(Boolean) : [];
     const otherD = otherDietaryText.trim() ? otherDietaryText.split(',').map((s) => s.trim()).filter(Boolean) : [];
     completeOnboarding({ dietaryRestrictions: selectedTags, allergies: selectedAllergies, otherAllergies: otherA.length ? otherA : undefined, otherDietary: otherD.length ? otherD : undefined });
     onComplete?.();
   };
 
+  const handleNext = (nextStep: OnboardingStep) => {
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setStep(nextStep);
+  };
+
   const isCenteredStep = step === 0 || step === 3;
+  const totalSteps = isRerun ? 3 : 4;
+  const currentStepIndex = isRerun ? step - 1 : step;
 
   return (
     <View style={[styles.shell, { backgroundColor: colors.backgroundMain, justifyContent: isCenteredStep ? 'center' : 'flex-start' }]}>
-      <View style={styles.progressDotsRow}>
-        {[0, 1, 2, 3].map((dot) => {
-          const hidden = isRerun && dot === 0;
-          if (hidden) return null;
-          return <View key={dot} style={[styles.progressDot, { backgroundColor: colors.borderSubtle }, dot <= step && { backgroundColor: colors.brandPrimary }]} />;
-        })}
+      <View style={styles.progressContainer}>
+        <ProgressBar step={currentStepIndex} totalSteps={totalSteps} colors={colors} />
+        <Text style={[styles.stepIndicator, { color: colors.textSecondary }]}>
+          Step {currentStepIndex + 1} of {totalSteps}
+        </Text>
       </View>
 
       <Animated.View style={[styles.card, styles.cardFlex, { opacity: contentOpacity, transform: [{ translateX: contentTranslate }] }]}>
         {step === 0 ? (
           <View style={styles.centeredStep}>
-            <Animated.View style={{ transform: [{ scale: welcomeScale }] }}>
+            <Animated.View style={{ transform: [{ scale: welcomeScale }], opacity: welcomeOpacity }}>
               <Image source={require('@/assets/images/logo.png')} style={styles.welcomeLogo} resizeMode="contain" />
             </Animated.View>
             <Text style={[styles.title, { color: colors.textPrimary }]}>Welcome, {firstName}!</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Let&apos;s personalize your dining experience. It&apos;ll only take a moment.</Text>
-            <Pressable onPress={() => setStep(1)} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]} testID="onboarding-next-welcome">
+            <Pressable
+              onPress={() => handleNext(1)}
+              style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]}
+              testID="onboarding-next-welcome"
+            >
               <Text style={styles.primaryButtonText}>Let&apos;s Go →</Text>
             </Pressable>
           </View>
@@ -144,13 +232,12 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
 
         {step === 1 ? (
           <View style={styles.preferencesStep}>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Any dietary preferences or restrictions?</Text>
+            <View style={[styles.stepIconWrap, { backgroundColor: colors.brandPrimaryLight }]}>
+              <Sparkles size={24} color={colors.brandPrimary} />
+            </View>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Dietary Preferences</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              We&apos;ll highlight menu items that match and show cautions when items contain ingredients you avoid.
-            </Text>
-            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-              For example: are you vegetarian or vegan, do you avoid gluten, dairy, or nuts, do you keep halal, or prefer higher‑protein options?
-              Turn on anything that should shape your recommendations.
+              Select any that apply. We&apos;ll highlight matching menu items and show cautions.
             </Text>
             <ScrollView style={styles.preferenceScroll} contentContainerStyle={styles.preferenceList} showsVerticalScrollIndicator={false}>
               {ALL_DIETARY_TAGS.map((tag) => (
@@ -165,7 +252,11 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
                 onChangeText={setOtherDietaryText}
               />
             </ScrollView>
-            <Pressable onPress={() => setStep(2)} style={({ pressed }) => [styles.primaryButton, styles.onboardingButtonSpacing, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]} testID="onboarding-next-preferences">
+            <Pressable
+              onPress={() => handleNext(2)}
+              style={({ pressed }) => [styles.primaryButton, styles.onboardingButtonSpacing, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]}
+              testID="onboarding-next-preferences"
+            >
               <Text style={styles.primaryButtonText}>Continue →</Text>
             </Pressable>
           </View>
@@ -173,30 +264,20 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
 
         {step === 2 ? (
           <View style={styles.preferencesStep}>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Any food allergies?</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>We&apos;ll show a caution on menu items that contain these. Select all that apply.</Text>
-            <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-              For example: are you allergic to nuts, dairy, eggs, shellfish, gluten, soy, or anything else that could cause a reaction?
-              Turn on anything you need Ram Café to watch out for.
-            </Text>
+            <View style={[styles.stepIconWrap, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
+              <Text style={styles.stepIconEmoji}>⚠️</Text>
+            </View>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Food Allergies</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>We&apos;ll show a caution on items that contain these. Select all that apply.</Text>
             <ScrollView style={styles.preferenceScroll} contentContainerStyle={styles.preferenceList} showsVerticalScrollIndicator={false}>
               {ALL_ALLERGENS.map((allergen) => (
-                <Pressable
+                <AllergenOptionRow
                   key={allergen}
+                  allergen={allergen}
+                  selected={selectedAllergies.includes(allergen)}
                   onPress={() => toggleAllergen(allergen)}
-                  style={[styles.preferenceRow, { backgroundColor: colors.backgroundCard, borderColor: colors.borderSubtle }, selectedAllergies.includes(allergen) && { borderColor: colors.brandPrimary, borderWidth: 2, backgroundColor: `${colors.brandPrimary}1A` }]}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: selectedAllergies.includes(allergen) }}
-                >
-                  <Text style={[styles.preferenceLabel, { color: colors.textPrimary }]}>{ALLERGEN_LABELS[allergen]}</Text>
-                  {selectedAllergies.includes(allergen) ? (
-                    <View style={[styles.checkCircle, { backgroundColor: colors.brandPrimary }]}>
-                      <Check size={14} color="#FFFFFF" />
-                    </View>
-                  ) : (
-                    <View style={[styles.checkCircleEmpty, { borderColor: colors.borderSubtle }]} />
-                  )}
-                </Pressable>
+                  colors={colors}
+                />
               ))}
               <Text style={[styles.optionalLabel, { color: colors.textSecondary }]}>Other allergies (comma-separated)</Text>
               <TextInput
@@ -207,7 +288,11 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
                 onChangeText={setOtherAllergiesText}
               />
             </ScrollView>
-            <Pressable onPress={() => setStep(3)} style={({ pressed }) => [styles.primaryButton, styles.onboardingButtonSpacing, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]} testID="onboarding-next-allergies">
+            <Pressable
+              onPress={() => handleNext(3)}
+              style={({ pressed }) => [styles.primaryButton, styles.onboardingButtonSpacing, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]}
+              testID="onboarding-next-allergies"
+            >
               <Text style={styles.primaryButtonText}>Continue →</Text>
             </Pressable>
           </View>
@@ -216,11 +301,17 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
         {step === 3 ? (
           <View style={styles.centeredStep}>
             <Animated.View style={{ opacity: finalOpacity, transform: [{ scale: finalScale }] }}>
-              <CheckCircle2 size={76} color={colors.accentGreen} />
+              <View style={[styles.completionCircle, { backgroundColor: colors.accentGreenLight }]}>
+                <CheckCircle2 size={56} color={colors.accentGreen} />
+              </View>
             </Animated.View>
             <Text style={[styles.title, { color: colors.textPrimary }]}>You&apos;re all set, {firstName}!</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Enjoy your dining experience at Ram Café.</Text>
-            <Pressable onPress={handleFinish} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]} testID="onboarding-finish-button">
+            <Pressable
+              onPress={handleFinish}
+              style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.primaryButtonPressed]}
+              testID="onboarding-finish-button"
+            >
               <Text style={styles.primaryButtonText}>{isRerun ? 'Save Preferences →' : 'Start Exploring →'}</Text>
             </Pressable>
           </View>
@@ -237,16 +328,24 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     justifyContent: 'center',
   },
-  progressDotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  progressContainer: {
+    marginBottom: 24,
+    alignItems: 'center',
     gap: 8,
-    marginBottom: 28,
   },
-  progressDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  progressBarTrack: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden' as const,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  stepIndicator: {
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
   card: {},
   cardFlex: {
@@ -259,18 +358,38 @@ const styles = StyleSheet.create({
   preferencesStep: {
     flex: 1,
     justifyContent: 'flex-start',
+    alignItems: 'center',
   },
-  welcomeLogo: {
+  stepIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  stepIconEmoji: {
+    fontSize: 24,
+  },
+  completionCircle: {
     width: 100,
     height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  welcomeLogo: {
+    width: 110,
+    height: 110,
     marginBottom: 20,
   },
   title: {
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '700' as const,
     textAlign: 'center',
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
@@ -278,18 +397,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
     marginBottom: 12,
-  },
-  helperText: {
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'center',
-    marginHorizontal: 8,
-    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   preferenceScroll: {
     flex: 1,
     minHeight: 200,
     marginTop: 4,
+    width: '100%',
   },
   preferenceList: {
     gap: 10,
@@ -298,12 +412,12 @@ const styles = StyleSheet.create({
   preferenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 12,
-    minHeight: 56,
+    minHeight: 58,
   },
   preferenceEmoji: {
     fontSize: 22,
@@ -314,21 +428,21 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   checkCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkCircleEmpty: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 2,
   },
   primaryButton: {
-    minHeight: 52,
-    borderRadius: 14,
+    minHeight: 54,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -338,7 +452,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   primaryButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
@@ -353,7 +467,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,

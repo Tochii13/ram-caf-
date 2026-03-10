@@ -76,13 +76,20 @@ function AuthInput({
   colors: ReturnType<typeof getColors>;
 }) {
   const focusAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handleFocus = () => {
-    Animated.timing(focusAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+    Animated.parallel([
+      Animated.timing(focusAnim, { toValue: 1, duration: 250, useNativeDriver: false }),
+      Animated.spring(scaleAnim, { toValue: 1.01, useNativeDriver: true, speed: 50, bounciness: 4 }),
+    ]).start();
   };
 
   const handleBlur = () => {
-    Animated.timing(focusAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+    Animated.parallel([
+      Animated.timing(focusAnim, { toValue: 0, duration: 250, useNativeDriver: false }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 4 }),
+    ]).start();
   };
 
   const borderColor = focusAnim.interpolate({
@@ -90,8 +97,13 @@ function AuthInput({
     outputRange: [colors.borderSubtle, colors.brandPrimary],
   });
 
+  const borderWidth = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.5, 2],
+  });
+
   return (
-    <Animated.View style={[styles.inputWrap, { borderColor }]}>
+    <Animated.View style={[styles.inputWrap, { borderColor, borderWidth, transform: [{ scale: scaleAnim }] }]}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -172,7 +184,7 @@ function LoginForm() {
         <Pressable
           onPress={handleLogin}
           onPressIn={() => Animated.spring(buttonScale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start()}
-          onPressOut={() => Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start()}
+          onPressOut={() => Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start()}
           style={[styles.primaryButton, { backgroundColor: colors.brandPrimary }]}
           disabled={isSubmitting}
           testID="login-submit-button"
@@ -252,7 +264,7 @@ function SignupForm() {
         <Pressable
           onPress={handleSignup}
           onPressIn={() => Animated.spring(buttonScale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 4 }).start()}
-          onPressOut={() => Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start()}
+          onPressOut={() => Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }).start()}
           style={[styles.primaryButton, { backgroundColor: colors.brandPrimary }]}
           disabled={isSubmitting}
           testID="signup-submit-button"
@@ -270,15 +282,29 @@ function AuthRootView() {
   const [mode, setMode] = useState<AuthMode>('login');
   const fade = useRef(new Animated.Value(1)).current;
   const slide = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
+  const titleFade = useRef(new Animated.Value(0)).current;
+  const titleSlide = useRef(new Animated.Value(12)).current;
+  const cardFade = useRef(new Animated.Value(0)).current;
+  const cardSlide = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(logoScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
-      Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 70, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(titleFade, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(titleSlide, { toValue: 0, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(cardFade, { toValue: 1, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(cardSlide, { toValue: 0, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]),
     ]).start();
-  }, [logoScale, logoOpacity]);
+  }, [logoScale, logoOpacity, titleFade, titleSlide, cardFade, cardSlide]);
 
   const toggleMode = useCallback((nextMode: AuthMode) => {
     if (nextMode === mode) return;
@@ -291,8 +317,8 @@ function AuthRootView() {
       setMode(nextMode);
       slide.setValue(nextMode === 'signup' ? 20 : -20);
       Animated.parallel([
-        Animated.timing(fade, { toValue: 1, duration: 180, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(slide, { toValue: 0, duration: 180, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(fade, { toValue: 1, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(slide, { toValue: 0, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]).start();
     });
   }, [fade, mode, slide]);
@@ -306,20 +332,22 @@ function AuthRootView() {
           resizeMode="contain"
         />
       </Animated.View>
-      <Text style={[styles.brandTitle, { color: colors.brandPrimary }]}>Ram Café</Text>
-      <Text style={[styles.tagline, { color: colors.textSecondary }]}>Huston-Tillotson University Dining</Text>
+      <Animated.View style={{ opacity: titleFade, transform: [{ translateY: titleSlide }] }}>
+        <Text style={[styles.brandTitle, { color: colors.brandPrimary }]}>Ram Café</Text>
+        <Text style={[styles.tagline, { color: colors.textSecondary }]}>Huston-Tillotson University Dining</Text>
+      </Animated.View>
 
-      <View style={[styles.authCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
-        <View style={styles.tabRow}>
+      <Animated.View style={[styles.authCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow, opacity: cardFade, transform: [{ translateY: cardSlide }] }]}>
+        <View style={[styles.tabRow, { backgroundColor: colors.surfaceTimeBlock, borderRadius: 14, padding: 3 }]}>
           <Pressable
             onPress={() => toggleMode('login')}
-            style={[styles.tabButton, mode === 'login' && [styles.tabButtonActive, { borderBottomColor: colors.brandPrimary }]]}
+            style={[styles.tabButton, mode === 'login' && [styles.tabButtonActive, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]]}
           >
             <Text style={[styles.tabButtonText, { color: mode === 'login' ? colors.brandPrimary : colors.textSecondary }]}>Log In</Text>
           </Pressable>
           <Pressable
             onPress={() => toggleMode('signup')}
-            style={[styles.tabButton, mode === 'signup' && [styles.tabButtonActive, { borderBottomColor: colors.brandPrimary }]]}
+            style={[styles.tabButton, mode === 'signup' && [styles.tabButtonActive, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]]}
           >
             <Text style={[styles.tabButtonText, { color: mode === 'signup' ? colors.brandPrimary : colors.textSecondary }]}>Sign Up</Text>
           </Pressable>
@@ -327,7 +355,7 @@ function AuthRootView() {
         <Animated.View style={{ opacity: fade, transform: [{ translateX: slide }] }}>
           {mode === 'login' ? <LoginForm /> : <SignupForm />}
         </Animated.View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -335,11 +363,35 @@ function AuthRootView() {
 export default function RootScreen() {
   const { currentUser, needsOnboarding, resolvedColorScheme, highContrastEnabled, isLoadingSession } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
+  const splashLogoScale = useRef(new Animated.Value(0.8)).current;
+  const splashLogoOpacity = useRef(new Animated.Value(0)).current;
+  const splashPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isLoadingSession) {
+      Animated.parallel([
+        Animated.spring(splashLogoScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+        Animated.timing(splashLogoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ]).start(() => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(splashPulse, { toValue: 1.05, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(splashPulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ])
+        ).start();
+      });
+    }
+  }, [isLoadingSession, splashLogoScale, splashLogoOpacity, splashPulse]);
 
   if (isLoadingSession) {
     return (
       <View style={[styles.safeArea, { backgroundColor: colors.backgroundMain, justifyContent: 'center', alignItems: 'center' }]}>
-        <Image source={require('@/assets/images/logo.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
+        <Animated.View style={{ opacity: splashLogoOpacity, transform: [{ scale: Animated.multiply(splashLogoScale, splashPulse) }] }}>
+          <Image source={require('@/assets/images/logo.png')} style={{ width: 130, height: 130 }} resizeMode="contain" />
+        </Animated.View>
+        <Animated.View style={{ opacity: splashLogoOpacity, marginTop: 20 }}>
+          <Text style={[styles.splashTitle, { color: colors.brandPrimary }]}>Ram Café</Text>
+        </Animated.View>
       </View>
     );
   }
@@ -385,39 +437,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoContainer: {
-    width: 100,
-    height: 100,
+    width: 110,
+    height: 110,
     marginBottom: 16,
   },
   logoImage: {
-    width: 100,
-    height: 100,
+    width: 110,
+    height: 110,
+  },
+  splashTitle: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    letterSpacing: -0.6,
   },
   brandTitle: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '700' as const,
     letterSpacing: -0.8,
+    textAlign: 'center',
   },
   tagline: {
     fontSize: 14,
     marginTop: 4,
-    marginBottom: 28,
+    marginBottom: 30,
+    textAlign: 'center',
   },
   authCard: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 20,
     ...Platform.select({
       ios: {
-        shadowOpacity: 0.1,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 8 },
       },
-      android: { elevation: 4 },
+      android: { elevation: 6 },
       web: {
-        shadowOpacity: 0.1,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 8 },
       },
     }),
   },
@@ -429,19 +488,29 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingBottom: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 10,
+    borderRadius: 12,
   },
   tabButtonActive: {
-    borderBottomWidth: 2,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: { elevation: 2 },
+      web: {
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
   },
   tabButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600' as const,
   },
   inputWrap: {
-    borderWidth: 1.5,
     borderRadius: 14,
     overflow: 'hidden' as const,
   },
@@ -457,10 +526,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#D32F2F',
+    color: '#C93535',
   },
   primaryButton: {
-    minHeight: 52,
+    minHeight: 54,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
