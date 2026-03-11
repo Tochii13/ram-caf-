@@ -3,7 +3,9 @@ import { ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, Platf
 import { Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { Eye } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
+import { t } from '@/constants/i18n';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { useSession } from '@/contexts/SessionContext';
 import { ADMIN_EMAIL, SCHOOL_DOMAIN } from '@/mocks/data';
@@ -120,7 +122,7 @@ function AuthInput({
 }
 
 function LoginForm() {
-  const { login, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { login, resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -138,7 +140,7 @@ function LoginForm() {
     }
 
     if (trimmedEmail && trimmedEmail !== ADMIN_EMAIL && !trimmedEmail.endsWith(`@${SCHOOL_DOMAIN}`)) {
-      nextErrors.email = `Please use your school email (…@${SCHOOL_DOMAIN}).`;
+      nextErrors.email = `${t(appLanguage, 'useSchoolEmail')} (…@${SCHOOL_DOMAIN}).`;
     }
 
     setErrors(nextErrors);
@@ -170,13 +172,13 @@ function LoginForm() {
       login(user, { needsOnboarding: false });
       setIsSubmitting(false);
     }, 600);
-  }, [email, login, password]);
+  }, [appLanguage, email, login, password]);
 
   return (
     <View>
-      <AuthInput value={email} onChangeText={setEmail} placeholder="School email" keyboardType="email-address" autoCapitalize="none" testID="login-email-input" colors={colors} />
+      <AuthInput value={email} onChangeText={setEmail} placeholder={t(appLanguage, 'schoolEmail')} keyboardType="email-address" autoCapitalize="none" testID="login-email-input" colors={colors} />
       <ErrorText message={errors.email ?? errors.form} />
-      <AuthInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoCapitalize="none" testID="login-password-input" colors={colors} />
+      <AuthInput value={password} onChangeText={setPassword} placeholder={t(appLanguage, 'password')} secureTextEntry autoCapitalize="none" testID="login-password-input" colors={colors} />
       <ErrorText message={undefined} />
       <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
         <Pressable
@@ -187,7 +189,7 @@ function LoginForm() {
           disabled={isSubmitting}
           testID="login-submit-button"
         >
-          {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Log In</Text>}
+          {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{t(appLanguage, 'logIn')}</Text>}
         </Pressable>
       </Animated.View>
     </View>
@@ -195,7 +197,7 @@ function LoginForm() {
 }
 
 function SignupForm() {
-  const { login, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { login, resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -212,19 +214,19 @@ function SignupForm() {
     const nextErrors: SignupErrors = {};
 
     if (!trimmedName || !trimmedEmail || !password.trim() || !confirmPassword.trim()) {
-      nextErrors.form = 'Please fill in all fields.';
+      nextErrors.form = t(appLanguage, 'fillAllFields');
     }
 
     if (trimmedEmail && !trimmedEmail.endsWith(`@${SCHOOL_DOMAIN}`)) {
-      nextErrors.email = `Students must sign up with their school email (…@${SCHOOL_DOMAIN}).`;
+      nextErrors.email = `${t(appLanguage, 'useSchoolEmail')} (…@${SCHOOL_DOMAIN}).`;
     }
 
     if (password && password.length < 6) {
-      nextErrors.password = 'Password must be at least 6 characters.';
+      nextErrors.password = t(appLanguage, 'passwordMinLength');
     }
 
     if (confirmPassword && password !== confirmPassword) {
-      nextErrors.confirmPassword = 'Passwords do not match.';
+      nextErrors.confirmPassword = t(appLanguage, 'passwordsNoMatch');
     }
 
     setErrors(nextErrors);
@@ -246,17 +248,17 @@ function SignupForm() {
       login(user, { needsOnboarding: true });
       setIsSubmitting(false);
     }, 600);
-  }, [confirmPassword, email, login, name, password]);
+  }, [appLanguage, confirmPassword, email, login, name, password]);
 
   return (
     <View>
-      <AuthInput value={name} onChangeText={setName} placeholder="Full name" autoCapitalize="words" testID="signup-name-input" colors={colors} />
+      <AuthInput value={name} onChangeText={setName} placeholder={t(appLanguage, 'fullName')} autoCapitalize="words" testID="signup-name-input" colors={colors} />
       <ErrorText message={errors.form} />
-      <AuthInput value={email} onChangeText={setEmail} placeholder="School email" keyboardType="email-address" autoCapitalize="none" testID="signup-email-input" colors={colors} />
+      <AuthInput value={email} onChangeText={setEmail} placeholder={t(appLanguage, 'schoolEmail')} keyboardType="email-address" autoCapitalize="none" testID="signup-email-input" colors={colors} />
       <ErrorText message={errors.email} />
-      <AuthInput value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoCapitalize="none" testID="signup-password-input" colors={colors} />
+      <AuthInput value={password} onChangeText={setPassword} placeholder={t(appLanguage, 'password')} secureTextEntry autoCapitalize="none" testID="signup-password-input" colors={colors} />
       <ErrorText message={errors.password} />
-      <AuthInput value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm password" secureTextEntry autoCapitalize="none" testID="signup-confirm-password-input" colors={colors} />
+      <AuthInput value={confirmPassword} onChangeText={setConfirmPassword} placeholder={t(appLanguage, 'confirmPassword')} secureTextEntry autoCapitalize="none" testID="signup-confirm-password-input" colors={colors} />
       <ErrorText message={errors.confirmPassword} />
       <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
         <Pressable
@@ -267,7 +269,7 @@ function SignupForm() {
           disabled={isSubmitting}
           testID="signup-submit-button"
         >
-          {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Create Account</Text>}
+          {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{t(appLanguage, 'createAccount')}</Text>}
         </Pressable>
       </Animated.View>
     </View>
@@ -275,7 +277,7 @@ function SignupForm() {
 }
 
 function AuthRootView() {
-  const { resolvedColorScheme, highContrastEnabled } = useSession();
+  const { resolvedColorScheme, highContrastEnabled, appLanguage, loginAsVisitor } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const [mode, setMode] = useState<AuthMode>('login');
   const fade = useRef(new Animated.Value(1)).current;
@@ -331,8 +333,8 @@ function AuthRootView() {
         />
       </Animated.View>
       <Animated.View style={{ opacity: titleFade, transform: [{ translateY: titleSlide }] }}>
-        <Text style={[styles.brandTitle, { color: colors.brandPrimary }]}>Ram Café</Text>
-        <Text style={[styles.tagline, { color: colors.textSecondary }]}>Huston-Tillotson University Dining</Text>
+        <Text style={[styles.brandTitle, { color: colors.brandPrimary }]}>{t(appLanguage, 'appName')}</Text>
+        <Text style={[styles.tagline, { color: colors.textSecondary }]}>{t(appLanguage, 'tagline')}</Text>
       </Animated.View>
 
       <Animated.View style={[styles.authCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow, opacity: cardFade, transform: [{ translateY: cardSlide }] }]}>
@@ -341,19 +343,36 @@ function AuthRootView() {
             onPress={() => toggleMode('login')}
             style={[styles.tabButton, mode === 'login' && [styles.tabButtonActive, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]]}
           >
-            <Text style={[styles.tabButtonText, { color: mode === 'login' ? colors.brandPrimary : colors.textSecondary }]}>Log In</Text>
+            <Text style={[styles.tabButtonText, { color: mode === 'login' ? colors.brandPrimary : colors.textSecondary }]}>{t(appLanguage, 'logIn')}</Text>
           </Pressable>
           <Pressable
             onPress={() => toggleMode('signup')}
             style={[styles.tabButton, mode === 'signup' && [styles.tabButtonActive, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]]}
           >
-            <Text style={[styles.tabButtonText, { color: mode === 'signup' ? colors.brandPrimary : colors.textSecondary }]}>Sign Up</Text>
+            <Text style={[styles.tabButtonText, { color: mode === 'signup' ? colors.brandPrimary : colors.textSecondary }]}>{t(appLanguage, 'signUp')}</Text>
           </Pressable>
         </View>
         <Animated.View style={{ opacity: fade, transform: [{ translateX: slide }] }}>
           {mode === 'login' ? <LoginForm /> : <SignupForm />}
         </Animated.View>
       </Animated.View>
+
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          loginAsVisitor();
+        }}
+        style={({ pressed }) => [styles.visitorButton, { borderColor: colors.borderSubtle }, pressed && { opacity: 0.7 }]}
+        testID="just-visiting-button"
+        accessibilityLabel={t(appLanguage, 'justVisiting')}
+        accessibilityRole="button"
+      >
+        <Eye size={18} color={colors.textSecondary} />
+        <View>
+          <Text style={[styles.visitorButtonText, { color: colors.textPrimary }]}>{t(appLanguage, 'justVisiting')}</Text>
+          <Text style={[styles.visitorSubtext, { color: colors.textSecondary }]}>{t(appLanguage, 'justVisitingSubtext')}</Text>
+        </View>
+      </Pressable>
     </View>
   );
 }
@@ -388,7 +407,7 @@ export default function RootScreen() {
           <Image source={require('@/assets/images/logo.png')} style={{ width: 130, height: 130 }} resizeMode="contain" />
         </Animated.View>
         <Animated.View style={{ opacity: splashLogoOpacity, marginTop: 20 }}>
-          <Text style={[styles.splashTitle, { color: colors.brandPrimary }]}>Ram Café</Text>
+          <Text style={[styles.splashTitle, { color: colors.brandPrimary }]}>What's in da Café</Text>
         </Animated.View>
       </View>
     );
@@ -416,6 +435,10 @@ export default function RootScreen() {
 
   if (currentUser.role === 'admin') {
     return <Redirect href="/dashboard" />;
+  }
+
+  if (currentUser.role === 'visitor') {
+    return <Redirect href="/today" />;
   }
 
   return <Redirect href="/today" />;
@@ -537,5 +560,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  visitorButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    marginTop: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed' as const,
+    width: '100%',
+  },
+  visitorButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  visitorSubtext: {
+    fontSize: 12,
+    marginTop: 2,
   },
 });

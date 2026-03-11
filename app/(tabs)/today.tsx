@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { ChevronRight, Clock, Search, Star, X, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
+import { t, tMealPeriod } from '@/constants/i18n';
 import FlowTagList from '@/components/FlowTagList';
 import MenuItemCard from '@/components/MenuItemCard';
 import MenuItemDetailView from '@/components/MenuItemDetailView';
@@ -16,18 +17,22 @@ import { DIETARY_TAG_EMOJIS, DIETARY_TAG_LABELS, MealPeriod, MEAL_PERIOD_LABELS,
 
 type FilterOption = 'all' | MealPeriod;
 
-const FILTERS_WEEKDAY: { key: FilterOption; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'breakfast', label: 'Breakfast' },
-  { key: 'lunch', label: 'Lunch' },
-  { key: 'dinner', label: 'Dinner' },
-];
+function getFiltersWeekday(lang: string): { key: FilterOption; label: string }[] {
+  return [
+    { key: 'all', label: t(lang, 'all') },
+    { key: 'breakfast', label: tMealPeriod(lang, 'breakfast') },
+    { key: 'lunch', label: tMealPeriod(lang, 'lunch') },
+    { key: 'dinner', label: tMealPeriod(lang, 'dinner') },
+  ];
+}
 
-const FILTERS_WEEKEND: { key: FilterOption; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'brunch', label: 'Brunch' },
-  { key: 'dinner', label: 'Dinner' },
-];
+function getFiltersWeekend(lang: string): { key: FilterOption; label: string }[] {
+  return [
+    { key: 'all', label: t(lang, 'all') },
+    { key: 'brunch', label: tMealPeriod(lang, 'brunch') },
+    { key: 'dinner', label: tMealPeriod(lang, 'dinner') },
+  ];
+}
 
 function getTimeRangeForPeriod(period: MealPeriod, isWeekend: boolean): string {
   if (isWeekend && (period === 'brunch' || period === 'dinner')) return MEAL_PERIOD_TIMES_WEEKEND[period].timeRange;
@@ -35,11 +40,11 @@ function getTimeRangeForPeriod(period: MealPeriod, isWeekend: boolean): string {
   return MEAL_PERIOD_TIMES[period].timeRange;
 }
 
-function getGreeting(name: string): string {
+function getGreeting(name: string, lang: string): string {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return `Good Morning, ${name}!`;
-  if (hour >= 12 && hour < 17) return `Good Afternoon, ${name}!`;
-  return `Good Evening, ${name}!`;
+  if (hour >= 5 && hour < 12) return `${t(lang, 'goodMorning')}, ${name}!`;
+  if (hour >= 12 && hour < 17) return `${t(lang, 'goodAfternoon')}, ${name}!`;
+  return `${t(lang, 'goodEvening')}, ${name}!`;
 }
 
 function getDayName(): string {
@@ -74,7 +79,7 @@ function getMinutesUntil(targetHourDecimal: number): number {
   return Math.max(0, Math.round(targetMins - minsFromMidnight));
 }
 
-function getCountdownState(): { message: string; highlight?: string; accessibilityMessage: string } {
+function getCountdownState(lang: string): { message: string; highlight?: string; accessibilityMessage: string } {
   const d = new Date();
   const hour = d.getHours() + d.getMinutes() / 60;
   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
@@ -87,17 +92,17 @@ function getCountdownState(): { message: string; highlight?: string; accessibili
     if (hour >= range.startHour && hour < range.endHour) {
       const mins = getMinutesUntil(range.endHour);
       return {
-        message: `${MEAL_PERIOD_LABELS[period]} closes in `,
+        message: `${tMealPeriod(lang, period)} ${t(lang, 'closesIn')} `,
         highlight: formatCountdown(mins),
-        accessibilityMessage: `${MEAL_PERIOD_LABELS[period]} closes in ${formatCountdownLong(mins)}.`,
+        accessibilityMessage: `${tMealPeriod(lang, period)} ${t(lang, 'closesIn')} ${formatCountdownLong(mins)}.`,
       };
     }
     if (hour < range.startHour) {
       const mins = getMinutesUntil(range.startHour);
       return {
-        message: `${MEAL_PERIOD_LABELS[period]} opens in `,
+        message: `${tMealPeriod(lang, period)} ${t(lang, 'opensIn')} `,
         highlight: formatCountdown(mins),
-        accessibilityMessage: `${MEAL_PERIOD_LABELS[period]} opens in ${formatCountdownLong(mins)}.`,
+        accessibilityMessage: `${tMealPeriod(lang, period)} ${t(lang, 'opensIn')} ${formatCountdownLong(mins)}.`,
       };
     }
   }
@@ -106,10 +111,10 @@ function getCountdownState(): { message: string; highlight?: string; accessibili
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowDay = tomorrow.getDay();
   const isTomorrowWeekend = tomorrowDay === 0 || tomorrowDay === 6;
-  const nextOpen = isTomorrowWeekend ? 'Brunch opens at 11:00 AM' : 'Breakfast opens at 7:00 AM';
+  const nextOpen = isTomorrowWeekend ? t(lang, 'brunchOpensAt') : t(lang, 'breakfastOpensAt');
   return {
-    message: `See you tomorrow! ${nextOpen}`,
-    accessibilityMessage: `All meals are closed for today. ${nextOpen} tomorrow.`,
+    message: `${t(lang, 'seeYouTomorrow')} ${nextOpen}`,
+    accessibilityMessage: `${t(lang, 'seeYouTomorrow')} ${nextOpen}.`,
   };
 }
 
@@ -223,12 +228,14 @@ function RatingSheetView({
   items,
   onSubmit,
   onSkip,
+  lang,
 }: {
   visible: boolean;
   mealPeriod: MealPeriod | null;
   items: MenuItem[];
   onSubmit: (ratings: Record<string, number>) => void;
   onSkip: () => void;
+  lang: string;
 }) {
   const { resolvedColorScheme, highContrastEnabled } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
@@ -250,10 +257,10 @@ function RatingSheetView({
       <View style={[styles.sheetOverlay, { backgroundColor: colors.overlayBg }]}>
         <View style={[styles.sheetCard, { backgroundColor: colors.backgroundCard }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.borderSubtle }]} />
-          <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>How was {mealPeriod ? MEAL_PERIOD_LABELS[mealPeriod] : 'your meal'}?</Text>
-          <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>Rate the items you tried today.</Text>
+          <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>{t(lang, 'howWas')} {mealPeriod ? tMealPeriod(lang, mealPeriod) : t(lang, 'yourMeal')}?</Text>
+          <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>{t(lang, 'rateItemsToday')}</Text>
           {items.length === 0 ? (
-            <Text style={[styles.sheetEmpty, { color: colors.textSecondary }]}>Nothing to rate for this period.</Text>
+            <Text style={[styles.sheetEmpty, { color: colors.textSecondary }]}>{t(lang, 'nothingToRate')}</Text>
           ) : (
             <ScrollView style={styles.sheetList} contentContainerStyle={styles.sheetListContent}>
               {items.map((item) => (
@@ -288,11 +295,11 @@ function RatingSheetView({
           )}
           {items.length > 0 ? (
             <Pressable onPress={() => onSubmit(selectedRatings)} style={({ pressed }) => [styles.sheetPrimaryButton, { backgroundColor: colors.brandPrimary }, pressed && styles.sheetPrimaryButtonPressed]} testID="submit-ratings-button">
-              <Text style={styles.sheetPrimaryButtonText}>Submit Ratings</Text>
+              <Text style={styles.sheetPrimaryButtonText}>{t(lang, 'submitRatings')}</Text>
             </Pressable>
           ) : null}
           <Pressable onPress={onSkip} style={styles.sheetSecondaryButton} testID="skip-ratings-button">
-            <Text style={[styles.sheetSecondaryText, { color: colors.textSecondary }]}>Skip</Text>
+            <Text style={[styles.sheetSecondaryText, { color: colors.textSecondary }]}>{t(lang, 'skip')}</Text>
           </Pressable>
         </View>
       </View>
@@ -339,17 +346,18 @@ function FilterChip({ label, selected, onPress, colors, testID }: { label: strin
 export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { currentUser, effectiveDietaryTags, resolvedColorScheme, highContrastEnabled, textSizeMultiplier } = useSession();
+  const { currentUser, effectiveDietaryTags, resolvedColorScheme, highContrastEnabled, textSizeMultiplier, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const { menuItems } = useMenuStore();
   const { submitRating, ratedPeriods, markPeriodRated } = useRatingsStore();
   const [filter, setFilter] = useState<FilterOption>('all');
-  const [countdownMessage, setCountdownMessage] = useState(getCountdownState());
+  const [countdownMessage, setCountdownMessage] = useState(getCountdownState('en'));
   const [showRatingSheet, setShowRatingSheet] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const firstAnnouncement = sampleAnnouncements[0];
-  const firstName = currentUser?.name?.trim().split(' ')[0] ?? 'Student';
+  const isVisitor = currentUser?.role === 'visitor';
+  const firstName = isVisitor ? t(appLanguage, 'visitor') : (currentUser?.name?.trim().split(' ')[0] ?? 'Student');
   const cafeHours = getCafeHoursForToday();
 
   const greetingFade = useRef(new Animated.Value(0)).current;
@@ -368,8 +376,8 @@ export default function TodayScreen() {
   }, []);
   const filtersForToday = useMemo(() => {
     const day = new Date().getDay();
-    return day === 0 || day === 6 ? FILTERS_WEEKEND : FILTERS_WEEKDAY;
-  }, []);
+    return day === 0 || day === 6 ? getFiltersWeekend(appLanguage) : getFiltersWeekday(appLanguage);
+  }, [appLanguage]);
 
   const isSearching = searchQuery.trim().length > 0;
 
@@ -407,10 +415,10 @@ export default function TodayScreen() {
   }, [menuItems, unratedPeriod]);
 
   useEffect(() => {
-    setCountdownMessage(getCountdownState());
-    const timer = setInterval(() => setCountdownMessage(getCountdownState()), 60000);
+    setCountdownMessage(getCountdownState(appLanguage));
+    const timer = setInterval(() => setCountdownMessage(getCountdownState(appLanguage)), 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [appLanguage]);
 
   const handleSubmitRatings = useCallback((ratings: Record<string, number>) => {
     if (!unratedPeriod) return;
@@ -451,7 +459,7 @@ export default function TodayScreen() {
     <>
       <ScrollView style={[styles.scroll, { backgroundColor: colors.backgroundMain }]} contentContainerStyle={[styles.scrollContent, { paddingTop: 16 + Math.max(insets.top, 12) }]} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.greetingSection, { opacity: greetingFade, transform: [{ translateY: greetingSlide }] }]}>
-          <Text style={[styles.greeting, { color: colors.textPrimary, fontSize: 28 * textSizeMultiplier }]}>{getGreeting(firstName)}</Text>
+          <Text style={[styles.greeting, { color: colors.textPrimary, fontSize: 28 * textSizeMultiplier }]}>{getGreeting(firstName, appLanguage)}</Text>
           <Text style={[styles.dateSubline, { color: colors.textSecondary, fontSize: 15 * textSizeMultiplier }]}>{getDayName()}</Text>
         </Animated.View>
 
@@ -461,7 +469,7 @@ export default function TodayScreen() {
               <Search size={18} color={colors.textSecondary} />
               <TextInput
                 style={[styles.searchInput, { color: colors.textPrimary }]}
-                placeholder="Search menu items..."
+                placeholder={t(appLanguage, 'searchMenuItems')}
                 placeholderTextColor={colors.textSecondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -485,7 +493,7 @@ export default function TodayScreen() {
               {searchResults.length === 0 ? (
                 <View style={styles.emptySearch}>
                   <Search size={48} color={colors.textSecondary} />
-                  <Text style={[styles.emptySearchText, { color: colors.textPrimary }]}>No items match your search.</Text>
+                  <Text style={[styles.emptySearchText, { color: colors.textPrimary }]}>{t(appLanguage, 'noItemsMatch')}</Text>
                 </View>
               ) : (
                 searchResults.map((item) => (
@@ -531,12 +539,12 @@ export default function TodayScreen() {
                     <View style={[styles.hoursIconWrap, { backgroundColor: colors.brandPrimaryLight }]}>
                       <Clock size={16} color={colors.brandPrimary} />
                     </View>
-                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Today&apos;s Hours</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t(appLanguage, 'todaysHours')}</Text>
                   </View>
                   {isAnyPeriodOpen ? (
                     <View style={[styles.openBadge, { backgroundColor: colors.accentGreen }]}>
                       <PulsingDot color="#FFFFFF" />
-                      <Text style={styles.openBadgeText} accessibilityLabel="Open Now">Open</Text>
+                      <Text style={styles.openBadgeText} accessibilityLabel={t(appLanguage, 'open')}>{t(appLanguage, 'open')}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -547,7 +555,7 @@ export default function TodayScreen() {
                     accessibilityLabel={`${MEAL_PERIOD_LABELS[period.mealPeriod]}. ${period.startTime} to ${period.endTime}. ${period.isOpenNow ? 'Open now.' : 'Closed.'}`}
                   >
                     <View style={[styles.periodPill, { backgroundColor: period.isOpenNow ? colors.accentGreenLight : colors.surfaceTimeBlock }]}>
-                      <Text style={[styles.periodPillText, { color: period.isOpenNow ? colors.accentGreen : colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period.mealPeriod]}</Text>
+                      <Text style={[styles.periodPillText, { color: period.isOpenNow ? colors.accentGreen : colors.textPrimary }]}>{tMealPeriod(appLanguage, period.mealPeriod)}</Text>
                     </View>
                     <Text style={[styles.timeRange, { color: colors.textSecondary }]}>{period.startTime} – {period.endTime}</Text>
                     {period.isOpenNow ? <View style={[styles.openDot, { backgroundColor: colors.accentGreen }]} /> : null}
@@ -578,15 +586,15 @@ export default function TodayScreen() {
                     setShowRatingSheet(true);
                   }}
                   testID="rating-banner"
-                  accessibilityLabel={`Rate ${MEAL_PERIOD_LABELS[unratedPeriod]}. Tap to leave a rating.`}
-                  accessibilityHint={`Opens the rating screen for today's ${MEAL_PERIOD_LABELS[unratedPeriod].toLowerCase()} items.`}
+                  accessibilityLabel={`${t(appLanguage, 'howWas')} ${tMealPeriod(appLanguage, unratedPeriod)}. ${t(appLanguage, 'tapToRate')}`}
+                  accessibilityHint={t(appLanguage, 'tapToRate')}
                   accessibilityRole="button"
                 >
                   <View style={[styles.ratingBanner, { backgroundColor: colors.accentGoldLight, borderLeftColor: colors.accentGold, borderLeftWidth: 3 }]}>
                     <View style={styles.ratingBannerInner}>
                       <Star size={20} color={colors.accentGold} fill={colors.accentGold} />
                       <Text style={[styles.ratingBannerText, { color: colors.textPrimary }]}>
-                        How was {MEAL_PERIOD_LABELS[unratedPeriod]}? Tap to rate.
+                        {t(appLanguage, 'howWas')} {tMealPeriod(appLanguage, unratedPeriod)}? {t(appLanguage, 'tapToRate')}
                       </Text>
                       <ChevronRight size={18} color={colors.textSecondary} />
                     </View>
@@ -599,12 +607,12 @@ export default function TodayScreen() {
               <AnimatedSection delay={460}>
                 <View style={styles.pickedSection}>
                   <View style={styles.pickedHeader}>
-                    <Text style={[styles.pickedTitle, { color: colors.textPrimary }]}>Picked for You</Text>
+                    <Text style={[styles.pickedTitle, { color: colors.textPrimary }]}>{t(appLanguage, 'pickedForYou')}</Text>
                     <View style={[styles.pickedBadge, { backgroundColor: colors.brandPrimaryLight }]}>
-                      <Text style={[styles.pickedBadgeText, { color: colors.brandPrimary }]}>✨ Personalized</Text>
+                      <Text style={[styles.pickedBadgeText, { color: colors.brandPrimary }]}>✨ {t(appLanguage, 'personalized')}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.pickedSubtitle, { color: colors.textSecondary }]}>Based on your dietary preferences</Text>
+                  <Text style={[styles.pickedSubtitle, { color: colors.textSecondary }]}>{t(appLanguage, 'basedOnPreferences')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendationRow}>
                     {pickedForYou.map((item, index) => (
                       <RecommendationCard key={item.id} item={item} colors={colors} highContrast={highContrastEnabled} index={index} />
@@ -616,7 +624,7 @@ export default function TodayScreen() {
 
             <AnimatedSection delay={540}>
               <View style={styles.menuHeader}>
-                <Text style={[styles.menuSectionTitle, { color: colors.textPrimary, fontSize: 20 * textSizeMultiplier }]}>Today&apos;s Menu</Text>
+                <Text style={[styles.menuSectionTitle, { color: colors.textPrimary, fontSize: 20 * textSizeMultiplier }]}>{t(appLanguage, 'todaysMenu')}</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
                 {filtersForToday.map((f) => (
@@ -641,7 +649,7 @@ export default function TodayScreen() {
                     <View style={styles.periodHeader}>
                       <View style={styles.periodNameRow}>
                         <View style={[styles.periodDot, { backgroundColor: colors.brandPrimary }]} />
-                        <Text style={[styles.periodName, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
+                        <Text style={[styles.periodName, { color: colors.textPrimary }]}>{tMealPeriod(appLanguage, period)}</Text>
                       </View>
                       <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{getTimeRangeForPeriod(period, isWeekend)}</Text>
                     </View>
@@ -658,7 +666,7 @@ export default function TodayScreen() {
         <View style={styles.bottomPad} />
       </ScrollView>
 
-      <RatingSheetView visible={showRatingSheet} mealPeriod={unratedPeriod} items={ratingItems} onSubmit={handleSubmitRatings} onSkip={handleSkipRatings} />
+      <RatingSheetView visible={showRatingSheet} mealPeriod={unratedPeriod} items={ratingItems} onSubmit={handleSubmitRatings} onSkip={handleSkipRatings} lang={appLanguage} />
 
       <Modal visible={selectedItem !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedItem(null)}>
         <View style={[styles.detailModalShell, { backgroundColor: colors.backgroundMain }]}>
@@ -666,7 +674,7 @@ export default function TodayScreen() {
             <Pressable onPress={() => setSelectedItem(null)} accessibilityLabel="Close details" accessibilityRole="button" style={({ pressed }) => [styles.detailCloseButton, { backgroundColor: colors.surfaceTimeBlock }, pressed && { opacity: 0.6 }]}>
               <X size={18} color={colors.textPrimary} />
             </Pressable>
-            <Text style={[styles.detailModalTitle, { color: colors.textPrimary }]}>Details</Text>
+            <Text style={[styles.detailModalTitle, { color: colors.textPrimary }]}>{t(appLanguage, 'details')}</Text>
             <View style={styles.detailHeaderSpacer} />
           </View>
           {selectedItem ? <MenuItemDetailView item={selectedItem} /> : null}

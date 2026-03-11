@@ -3,6 +3,7 @@ import { Animated, Easing, View, Text, StyleSheet, ScrollView, Pressable, Platfo
 import { Clock, Megaphone, Bell } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { getColors } from '@/constants/colors';
+import { t } from '@/constants/i18n';
 import { useSession } from '@/contexts/SessionContext';
 import { sampleAnnouncements } from '@/mocks/data';
 
@@ -88,7 +89,7 @@ function AnnouncementCard({ item, index, colors }: {
 }
 
 export default function AnnouncementsScreen() {
-  const { resolvedColorScheme, highContrastEnabled } = useSession();
+  const { resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const headerFade = useRef(new Animated.Value(0)).current;
   const headerSlide = useRef(new Animated.Value(-16)).current;
@@ -127,20 +128,20 @@ export default function AnnouncementsScreen() {
         <Animated.View style={[styles.headerIconWrap, { backgroundColor: colors.brandPrimaryMedium, transform: [{ scale: iconScale }] }]}>
           <Megaphone size={28} color={colors.brandPrimary} />
         </Animated.View>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Latest Updates</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t(appLanguage, 'latestUpdates')}</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-          Stay informed about dining hours, new menu items, and campus events.
+          {t(appLanguage, 'stayInformed')}
         </Text>
         <View style={[styles.countBadge, { backgroundColor: colors.brandPrimaryLight }]}>
-          <Text style={[styles.countBadgeText, { color: colors.brandPrimary }]}>{sampleAnnouncements.length} update{sampleAnnouncements.length !== 1 ? 's' : ''}</Text>
+          <Text style={[styles.countBadgeText, { color: colors.brandPrimary }]}>{sampleAnnouncements.length} {sampleAnnouncements.length !== 1 ? t(appLanguage, 'updates') : t(appLanguage, 'update')}</Text>
         </View>
       </Animated.View>
 
       {sampleAnnouncements.length === 0 ? (
         <View style={styles.emptyState}>
           <Megaphone size={48} color={colors.textSecondary} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No announcements yet</Text>
-          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Check back later for updates</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t(appLanguage, 'noAnnouncementsYet')}</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>{t(appLanguage, 'checkBackLater')}</Text>
         </View>
       ) : (
         <View style={styles.cardList}>

@@ -151,7 +151,7 @@ export const sampleAnnouncements: Announcement[] = [
   {
     id: 'a3',
     title: 'Spring Break Hours',
-    content: 'Ram Café will operate on reduced hours during spring break. Check the weekly menu for details.',
+    content: 'The café will operate on reduced hours during spring break. Check the weekly menu for details.',
     date: new Date('2026-03-12T12:00:00'),
     formattedDate: 'Mar 12',
   },

@@ -3,10 +3,11 @@ import { Bell, Calendar, Settings, UtensilsCrossed } from 'lucide-react-native';
 import React from 'react';
 import { Platform } from 'react-native';
 import { getColors } from '@/constants/colors';
+import { t } from '@/constants/i18n';
 import { useSession } from '@/contexts/SessionContext';
 
 export default function TabLayout() {
-  const { isAuthenticated, currentUser, needsOnboarding, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { isAuthenticated, currentUser, needsOnboarding, resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
 
   if (!isAuthenticated) {
@@ -60,29 +61,30 @@ export default function TabLayout() {
       <Tabs.Screen
         name="today"
         options={{
-          title: 'Today',
+          title: t(appLanguage, 'today'),
           tabBarIcon: ({ color, size }) => <UtensilsCrossed color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="weekly"
         options={{
-          title: 'Weekly',
+          title: t(appLanguage, 'weekly'),
           tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="announcements"
         options={{
-          title: 'Updates',
-          tabBarLabel: 'Updates',
+          title: t(appLanguage, 'updates'),
+          tabBarLabel: t(appLanguage, 'updates'),
           tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />,
+          href: currentUser?.role === 'visitor' ? null : undefined,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t(appLanguage, 'settings'),
           tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />,
         }}
       />

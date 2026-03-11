@@ -1,4 +1,4 @@
-# Ram Café — Campus Dining App
+# What's in da Café — Campus Dining App
 
 ## Progress
 - [x] Fix premature auth navigation before root layout mount by moving redirects into the tab layout
@@ -15,6 +15,7 @@
 - [x] **Login** with school email (@htu.edu) validation and inline error messages
 - [x] **Sign up** with name, email, password, confirm password — all validated inline
 - [x] **Admin shortcut** — logging in with admin@htu.edu opens the admin dashboard
+- [x] **Just Visiting** — guest mode for visitors/alumni to browse Today and Weekly menus without signing up
 - [x] **Animated auth toggle** between login and sign up
 - [x] **Simulated loading state** on auth CTA buttons
 - [x] **Log out** from Settings (student) or Admin Settings tab (admin)
@@ -66,7 +67,7 @@
 - [x] **Display section** with appearance mode picker (System / Light / Dark)
 - [x] **High Contrast toggle** for increased visual contrast
 - [x] **Text Size slider** (Small to XL) for adjustable text sizing
-- [x] **Language picker** (English / Spanish / French) with MVP placeholder alert
+- [x] **Language picker** (English / Yorùbá / Igbo) with full translations
 - [x] **Expanded dietary preference toggles** (7 tags: Vegetarian, Vegan, Gluten-Free, High Protein, Dairy-Free, Nut-Free, Halal)
 - [x] Retake Preferences Quiz row
 - [x] **Expanded notification toggles** (Announcements, New Menu Items, Daily Menu Reminder, Meal Period Alerts)
@@ -84,7 +85,7 @@
 - [x] **Arrow navigation buttons** on weekly day picker for motor accessibility
 - [x] **Expanded dietary tags** (7 options including Dairy-Free, Nut-Free, Halal)
 - [x] **Expanded allergen conflict mapping** (dairyFree→dairy, nutFree→nuts)
-- [x] **Language toggle** architecture (MVP: English only, placeholder for Spanish/French)
+- [x] **Multilingual support** — full i18n system with English, Yorùbá, and Igbo translations across all screens
 - [x] **Expanded notification controls** (Daily Menu Reminder, Meal Period Alerts)
 - [x] **Admin availability picker** on menu item form (Available / Limited / Sold Out)
 
@@ -142,7 +143,7 @@
 
 ## Screens
 
-1. **Auth Screen** — animated login/sign up swap, inline validation, loading CTA, HTU domain
+1. **Auth Screen** — animated login/sign up swap, inline validation, loading CTA, HTU domain, Just Visiting guest button
 2. **Onboarding Flow** — welcome, expanded dietary preferences (7 tags), completion, and rerun mode
 3. **Today Screen** — greeting, search bar, announcement banner, hours card, countdown, rating banner, recommendations, filtered menu with detail view
 4. **Weekly Menu Screen** — horizontal day picker with arrow buttons, expanded breakfast, lunch, and dinner cards

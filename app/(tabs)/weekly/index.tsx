@@ -3,6 +3,7 @@ import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, Vi
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
+import { t, tMealPeriod } from '@/constants/i18n';
 import FlowTagList from '@/components/FlowTagList';
 import { useMenuStore } from '@/contexts/MenuStoreContext';
 import { useSession } from '@/contexts/SessionContext';
@@ -12,7 +13,6 @@ import {
   DIETARY_TAG_EMOJIS,
   DIETARY_TAG_LABELS,
   MealPeriod,
-  MEAL_PERIOD_LABELS,
   MEAL_PERIOD_TIMES,
   MEAL_PERIOD_TIMES_WEEKDAY,
   MEAL_PERIOD_TIMES_WEEKEND,
@@ -182,7 +182,7 @@ function DayCard({
 
 export default function WeeklyScreen() {
   const { weeklyDays, menuItems } = useMenuStore();
-  const { resolvedColorScheme, highContrastEnabled } = useSession();
+  const { resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const contentFade = useRef(new Animated.Value(1)).current;
@@ -306,7 +306,7 @@ export default function WeeklyScreen() {
                     <View style={[styles.periodTop, { backgroundColor: colors.surfaceTimeBlock }]}>
                       <View style={styles.periodTitleRow}>
                         <Text style={styles.periodEmoji}>{PERIOD_EMOJI[period] ?? '🍽️'}</Text>
-                        <Text style={[styles.periodTitle, { color: colors.textPrimary }]}>{MEAL_PERIOD_LABELS[period]}</Text>
+                        <Text style={[styles.periodTitle, { color: colors.textPrimary }]}>{tMealPeriod(appLanguage, period)}</Text>
                       </View>
                       <View style={[styles.periodTimeBadge, { backgroundColor: colors.backgroundCard }]}>
                         <Text style={[styles.periodTime, { color: colors.textSecondary }]}>{timeRange}</Text>
@@ -339,12 +339,12 @@ export default function WeeklyScreen() {
                       {items.length === 0 ? (
                         <View style={styles.emptyPeriodWrap}>
                           <Text style={styles.emptyPeriodEmoji}>🍽️</Text>
-                          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>No items planned yet</Text>
+                          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>{t(appLanguage, 'noItemsPlanned')}</Text>
                         </View>
                       ) : null}
                     </View>
                     <View style={[styles.periodItemCount, { backgroundColor: colors.surfaceTimeBlock }]}>
-                      <Text style={[styles.periodItemCountText, { color: colors.textSecondary }]}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
+                      <Text style={[styles.periodItemCountText, { color: colors.textSecondary }]}>{items.length} {items.length !== 1 ? t(appLanguage, 'items') : t(appLanguage, 'item')}</Text>
                     </View>
                   </View>
                 );
@@ -353,7 +353,7 @@ export default function WeeklyScreen() {
             </Animated.View>
           );
         })() : (
-          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>Select a day above.</Text>
+          <Text style={[styles.emptyPeriodText, { color: colors.textSecondary }]}>{t(appLanguage, 'selectDay')}</Text>
         )}
       </ScrollView>
     </View>

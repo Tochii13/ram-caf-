@@ -18,6 +18,7 @@ interface SessionContextValue {
   appLanguage: string;
   resolvedColorScheme: ColorSchemeName;
   login: (user: User, options?: { needsOnboarding?: boolean }) => void;
+  loginAsVisitor: () => void;
   logout: () => void;
   completeOnboarding: (data: { dietaryRestrictions: DietaryTag[]; allergies?: Allergen[]; otherDietary?: string[]; otherAllergies?: string[] }) => void;
   updateDietaryPreferences: (tags: DietaryTag[]) => void;
@@ -79,6 +80,19 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
     setCurrentUser(user);
     setNeedsOnboarding(options?.needsOnboarding ?? false);
     void AsyncStorage.setItem('currentUser', JSON.stringify(user));
+  }, []);
+
+  const loginAsVisitor = useCallback(() => {
+    console.log('[Session] Logging in as visitor');
+    const visitor: User = {
+      id: `visitor-${Date.now()}`,
+      name: 'Visitor',
+      email: 'visitor@guest',
+      role: 'visitor',
+    };
+    setCurrentUser(visitor);
+    setNeedsOnboarding(false);
+    void AsyncStorage.setItem('currentUser', JSON.stringify(visitor));
   }, []);
 
   const logout = useCallback(() => {
@@ -202,6 +216,7 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
     appLanguage,
     resolvedColorScheme,
     login,
+    loginAsVisitor,
     logout,
     completeOnboarding,
     updateDietaryPreferences,
@@ -212,5 +227,5 @@ export const [SessionProvider, useSession] = createContextHook<SessionContextVal
     setHighContrastEnabled,
     setTextSizeMultiplier,
     setAppLanguage,
-  }), [appLanguage, appearanceMode, completeOnboarding, currentUser, highContrastEnabled, isLoadingSession, login, logout, needsOnboarding, resolvedColorScheme, setAppLanguage, setAppearanceMode, setHighContrastEnabled, setTextSizeMultiplier, textSizeMultiplier, updateDietaryPreferences, updateAllergies, updateOtherDietary]);
+  }), [appLanguage, appearanceMode, completeOnboarding, currentUser, highContrastEnabled, isLoadingSession, login, loginAsVisitor, logout, needsOnboarding, resolvedColorScheme, setAppLanguage, setAppearanceMode, setHighContrastEnabled, setTextSizeMultiplier, textSizeMultiplier, updateDietaryPreferences, updateAllergies, updateOtherDietary]);
 });

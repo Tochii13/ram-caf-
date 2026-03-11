@@ -1,26 +1,24 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Alert, Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 import * as Haptics from 'expo-haptics';
 import { ChevronRight, LogOut, RotateCcw, Shield, Sun, Type, Globe, Bell, Heart, AlertTriangle, UtensilsCrossed, Clock, Megaphone } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
+import { t, LANGUAGE_OPTIONS } from '@/constants/i18n';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { useSession } from '@/contexts/SessionContext';
 import { DIETARY_TAG_LABELS, DietaryTag, AppearanceMode } from '@/types';
 
-const APPEARANCE_OPTIONS: { key: AppearanceMode; label: string; icon: 'sun' | 'moon' | 'system' }[] = [
-  { key: 'system', label: 'Auto', icon: 'system' },
-  { key: 'light', label: 'Light', icon: 'sun' },
-  { key: 'dark', label: 'Dark', icon: 'moon' },
-];
+function getAppearanceOptions(lang: string): { key: AppearanceMode; label: string; icon: 'sun' | 'moon' | 'system' }[] {
+  return [
+    { key: 'system', label: t(lang, 'auto'), icon: 'system' },
+    { key: 'light', label: t(lang, 'light'), icon: 'sun' },
+    { key: 'dark', label: t(lang, 'dark'), icon: 'moon' },
+  ];
+}
 
-const LANGUAGE_OPTIONS = [
-  { key: 'en', label: 'English' },
-  { key: 'es', label: 'Spanish' },
-  { key: 'fr', label: 'French' },
-  { key: 'ne', label: 'Nepali' },
-];
+
 
 function AnimatedRow({ delay, children }: { delay: number; children: React.ReactNode }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -101,15 +99,14 @@ export default function SettingsScreen() {
   }, [avatarScale, avatarOpacity]);
 
   const dietarySummary = useMemo(() => {
-    if (effectiveDietaryTags.length === 0) return 'No preferences set';
+    if (effectiveDietaryTags.length === 0) return t(appLanguage, 'noPreferencesSet');
     return effectiveDietaryTags.map((item: DietaryTag) => DIETARY_TAG_LABELS[item]).join(', ');
-  }, [effectiveDietaryTags]);
+  }, [effectiveDietaryTags, appLanguage]);
+
+  const isVisitor = currentUser?.role === 'visitor';
 
   const handleLanguageChange = (lang: string) => {
-    if (lang !== 'en') {
-      Alert.alert('Coming Soon', 'Additional languages are coming soon. The app currently supports English.');
-      return;
-    }
+    if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setAppLanguage(lang);
   };
 
@@ -135,26 +132,28 @@ export default function SettingsScreen() {
             <Animated.View style={[styles.avatar, { backgroundColor: colors.brandPrimary, opacity: avatarOpacity, transform: [{ scale: avatarScale }] }]}>
               <Text style={styles.avatarText}>{currentUser?.name?.charAt(0)?.toUpperCase() ?? 'U'}</Text>
             </Animated.View>
-            <Text style={[styles.profileName, { color: colors.textPrimary }]}>{currentUser?.name ?? 'User'}</Text>
-            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{currentUser?.email ?? ''}</Text>
+            <Text style={[styles.profileName, { color: colors.textPrimary }]}>{isVisitor ? t(appLanguage, 'visitor') : (currentUser?.name ?? 'User')}</Text>
+            {!isVisitor ? <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{currentUser?.email ?? ''}</Text> : null}
             <View style={[styles.roleBadge, { backgroundColor: colors.brandPrimaryLight }]}>
-              <Text style={[styles.roleBadgeText, { color: colors.brandPrimary }]}>Student</Text>
+              <Text style={[styles.roleBadgeText, { color: colors.brandPrimary }]}>{isVisitor ? t(appLanguage, 'visitor') : t(appLanguage, 'student')}</Text>
             </View>
-            <Text style={[styles.profileDietary, { color: colors.textSecondary }]}>{dietarySummary}</Text>
+            {!isVisitor ? <Text style={[styles.profileDietary, { color: colors.textSecondary }]}>{dietarySummary}</Text> : (
+              <Text style={[styles.profileDietary, { color: colors.textSecondary }]}>{t(appLanguage, 'visitorNote')}</Text>
+            )}
           </View>
         </AnimatedRow>
 
         <AnimatedRow delay={100}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>DISPLAY</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t(appLanguage, 'display')}</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <View style={styles.settingRow}>
               <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
                 <Sun size={16} color={colors.brandPrimary} />
               </View>
-              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Appearance</Text>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'appearance')}</Text>
             </View>
             <View style={styles.segmentRow}>
-              {APPEARANCE_OPTIONS.map((opt) => (
+              {getAppearanceOptions(appLanguage).map((opt) => (
                 <SegmentButton
                   key={opt.key}
                   label={opt.label}
@@ -175,7 +174,7 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
                   <Shield size={16} color="#E67E22" />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>High Contrast</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'highContrast')}</Text>
               </View>
               <Switch
                 value={highContrastEnabled}
@@ -192,7 +191,7 @@ export default function SettingsScreen() {
               <View style={[styles.settingIcon, { backgroundColor: colors.accentGoldLight }]}>
                 <Type size={16} color={colors.accentGold} />
               </View>
-              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Text Size</Text>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'textSize')}</Text>
             </View>
             <View style={styles.sliderRow}>
               <Text style={[styles.sliderLabel, { color: colors.textSecondary, fontSize: 13 }]}>A</Text>
@@ -218,13 +217,13 @@ export default function SettingsScreen() {
               <View style={[styles.settingIcon, { backgroundColor: colors.accentGreenLight }]}>
                 <Globe size={16} color={colors.accentGreen} />
               </View>
-              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>Language</Text>
+              <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'language')}</Text>
             </View>
             <View style={styles.segmentRow}>
               {LANGUAGE_OPTIONS.map((opt) => (
                 <SegmentButton
                   key={opt.key}
-                  label={opt.label}
+                  label={opt.nativeLabel}
                   selected={appLanguage === opt.key}
                   onPress={() => handleLanguageChange(opt.key)}
                   colors={colors}
@@ -234,8 +233,9 @@ export default function SettingsScreen() {
           </View>
         </AnimatedRow>
 
+        {!isVisitor ? (
         <AnimatedRow delay={200}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PREFERENCES & ALLERGIES</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t(appLanguage, 'preferencesAllergies')}</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <Pressable
               onPress={() => router.push('/settings/dietary')}
@@ -247,7 +247,7 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: colors.accentGreenLight }]}>
                   <Heart size={16} color={colors.accentGreen} />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Dietary Preferences</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'dietaryPreferences')}</Text>
               </View>
               <ChevronRight size={18} color={colors.textSecondary} />
             </Pressable>
@@ -262,7 +262,7 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
                   <AlertTriangle size={16} color="#E67E22" />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Allergies</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'allergies')}</Text>
               </View>
               <ChevronRight size={18} color={colors.textSecondary} />
             </Pressable>
@@ -281,21 +281,23 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
                   <RotateCcw size={16} color={colors.brandPrimary} />
                 </View>
-                <Text style={[styles.quizText, { color: colors.brandPrimary }]}>Retake Preferences Quiz</Text>
+                <Text style={[styles.quizText, { color: colors.brandPrimary }]}>{t(appLanguage, 'retakeQuiz')}</Text>
               </View>
             </Pressable>
           </View>
         </AnimatedRow>
+        ) : null}
 
+        {!isVisitor ? (
         <AnimatedRow delay={300}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t(appLanguage, 'notifications')}</Text>
           <View style={[styles.sectionCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
                 <View style={[styles.settingIcon, { backgroundColor: colors.brandPrimaryLight }]}>
                   <Megaphone size={16} color={colors.brandPrimary} />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Announcements</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'announcements')}</Text>
               </View>
               <Switch value={notifAnnouncements} onValueChange={(v) => handleNotificationToggle(setNotifAnnouncements, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
@@ -305,7 +307,7 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: colors.accentGreenLight }]}>
                   <UtensilsCrossed size={16} color={colors.accentGreen} />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>New Menu Items</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'newMenuItems')}</Text>
               </View>
               <Switch value={notifNewMenu} onValueChange={(v) => handleNotificationToggle(setNotifNewMenu, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
@@ -315,7 +317,7 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: colors.accentGoldLight }]}>
                   <Bell size={16} color={colors.accentGold} />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Daily Menu Reminder</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'dailyMenuReminder')}</Text>
               </View>
               <Switch value={notifDailyReminder} onValueChange={(v) => handleNotificationToggle(setNotifDailyReminder, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
@@ -325,15 +327,16 @@ export default function SettingsScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: 'rgba(230,126,34,0.12)' }]}>
                   <Clock size={16} color="#E67E22" />
                 </View>
-                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>Meal Period Alerts</Text>
+                <Text style={[styles.toggleLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'mealPeriodAlerts')}</Text>
               </View>
               <Switch value={notifMealAlerts} onValueChange={(v) => handleNotificationToggle(setNotifMealAlerts, v)} trackColor={{ true: colors.brandPrimary, false: colors.borderSubtle }} thumbColor="#FFFFFF" />
             </View>
           </View>
         </AnimatedRow>
+        ) : null}
 
         <AnimatedRow delay={400}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ACCOUNT</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t(appLanguage, 'account')}</Text>
           <Pressable
             onPress={handleLogout}
             style={({ pressed }) => [styles.logoutCard, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }, pressed && styles.rowPressed]}
@@ -344,7 +347,7 @@ export default function SettingsScreen() {
             <View style={[styles.settingIcon, { backgroundColor: 'rgba(211,47,47,0.1)' }]}>
               <LogOut size={16} color={colors.destructive} />
             </View>
-            <Text style={[styles.logoutText, { color: colors.destructive }]}>Log Out</Text>
+            <Text style={[styles.logoutText, { color: colors.destructive }]}>{t(appLanguage, 'logOut')}</Text>
           </Pressable>
         </AnimatedRow>
 

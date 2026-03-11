@@ -106,7 +106,7 @@ export interface CafeHours {
   readonly isOpenNow: boolean;
 }
 
-export type UserRole = 'student' | 'admin';
+export type UserRole = 'student' | 'admin' | 'visitor';
 
 export interface StudentProfile {
   dietaryRestrictions: DietaryTag[];
