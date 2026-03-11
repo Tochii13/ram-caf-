@@ -3,7 +3,7 @@ import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, Vi
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
-import { t, tMealPeriod } from '@/constants/i18n';
+import { t, tMealPeriod, tFood, tFoodDesc, tDay } from '@/constants/i18n';
 import FlowTagList from '@/components/FlowTagList';
 import { useMenuStore } from '@/contexts/MenuStoreContext';
 import { useSession } from '@/contexts/SessionContext';
@@ -46,7 +46,7 @@ function WeeklyMenuItemRow({
   allergens?: Allergen[];
   index: number;
 }) {
-  const { effectiveAllergies } = useSession();
+  const { effectiveAllergies, appLanguage } = useSession();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(12)).current;
 
@@ -82,11 +82,11 @@ function WeeklyMenuItemRow({
           </View>
           <View style={styles.menuRowContent}>
             <View style={styles.menuNameRow}>
-              <Text style={[styles.menuName, { color: colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+              <Text style={[styles.menuName, { color: colors.textPrimary }]} numberOfLines={1}>{tFood(appLanguage, item.name)}</Text>
               <Text style={[styles.menuCalories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
             </View>
             {item.description ? (
-              <Text style={[styles.menuDescription, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
+              <Text style={[styles.menuDescription, { color: colors.textSecondary }]} numberOfLines={2}>{tFoodDesc(appLanguage, item.name, item.description)}</Text>
             ) : null}
             {item.dietaryTags.length > 0 ? (
               <FlowTagList style={styles.tagsWrap}>
@@ -115,7 +115,7 @@ function WeeklyMenuItemRow({
                     highContrast && styles.menuWarningTextHighContrast,
                   ]}
                 >
-                  ⚠️ Contains {warningText}
+                  ⚠️ {t(appLanguage, 'contains')} {warningText}
                 </Text>
               </View>
             ) : null}
@@ -295,7 +295,7 @@ export default function WeeklyScreen() {
             <Animated.View style={{ opacity: contentFade, transform: [{ translateY: contentSlide }] }}>
               <View style={styles.weekTitleRow}>
                 <Text style={[styles.weekTitle, { color: colors.textSecondary }]}>
-                  {selectedDay.weekday} · {selectedDay.dateLabel}
+                  {tDay(appLanguage, selectedDay.weekday)} · {selectedDay.dateLabel}
                 </Text>
               </View>
               {periods.map((period) => {

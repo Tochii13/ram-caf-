@@ -219,15 +219,16 @@ export default function SettingsScreen() {
               </View>
               <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>{t(appLanguage, 'language')}</Text>
             </View>
-            <View style={styles.segmentRow}>
+            <View style={styles.languageGrid}>
               {LANGUAGE_OPTIONS.map((opt) => (
-                <SegmentButton
+                <Pressable
                   key={opt.key}
-                  label={opt.nativeLabel}
-                  selected={appLanguage === opt.key}
                   onPress={() => handleLanguageChange(opt.key)}
-                  colors={colors}
-                />
+                  style={[styles.languageOption, { backgroundColor: appLanguage === opt.key ? colors.brandPrimary : colors.surfaceTimeBlock }]}
+                >
+                  <Text style={[styles.languageNative, { color: appLanguage === opt.key ? '#FFFFFF' : colors.textPrimary }]}>{opt.nativeLabel}</Text>
+                  <Text style={[styles.languageLabel, { color: appLanguage === opt.key ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>{opt.label}</Text>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -472,6 +473,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 4,
+  },
+  languageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  languageOption: {
+    width: '31%' as unknown as number,
+    flexGrow: 1,
+    minHeight: 54,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  languageNative: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  languageLabel: {
+    fontSize: 10,
+    marginTop: 2,
   },
   segmentButton: {
     minHeight: 42,

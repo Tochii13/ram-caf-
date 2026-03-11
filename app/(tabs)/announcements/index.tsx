@@ -3,14 +3,15 @@ import { Animated, Easing, View, Text, StyleSheet, ScrollView, Pressable, Platfo
 import { Clock, Megaphone, Bell } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { getColors } from '@/constants/colors';
-import { t } from '@/constants/i18n';
+import { t, tAnnounceTitle, tAnnounceContent } from '@/constants/i18n';
 import { useSession } from '@/contexts/SessionContext';
 import { sampleAnnouncements } from '@/mocks/data';
 
-function AnnouncementCard({ item, index, colors }: {
+function AnnouncementCard({ item, index, colors, lang }: {
   item: typeof sampleAnnouncements[0];
   index: number;
   colors: ReturnType<typeof getColors>;
+  lang: string;
 }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
@@ -67,7 +68,7 @@ function AnnouncementCard({ item, index, colors }: {
               </View>
               <View style={styles.cardTitleWrap}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={2}>{item.title}</Text>
+                  <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={2}>{tAnnounceTitle(lang, item.title)}</Text>
                   {isNew ? (
                     <View style={[styles.newBadge, { backgroundColor: colors.brandPrimary }]}>
                       <Text style={styles.newBadgeText}>NEW</Text>
@@ -80,7 +81,7 @@ function AnnouncementCard({ item, index, colors }: {
                 </View>
               </View>
             </View>
-            <Text style={[styles.cardBody, { color: colors.textSecondary }]}>{item.content}</Text>
+            <Text style={[styles.cardBody, { color: colors.textSecondary }]}>{tAnnounceContent(lang, item.title, item.content)}</Text>
           </View>
         </Animated.View>
       </Pressable>
@@ -146,7 +147,7 @@ export default function AnnouncementsScreen() {
       ) : (
         <View style={styles.cardList}>
           {sampleAnnouncements.map((item, index) => (
-            <AnnouncementCard key={item.id} item={item} index={index} colors={colors} />
+            <AnnouncementCard key={item.id} item={item} index={index} colors={colors} lang={appLanguage} />
           ))}
         </View>
       )}

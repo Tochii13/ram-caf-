@@ -67,7 +67,7 @@
 - [x] **Display section** with appearance mode picker (System / Light / Dark)
 - [x] **High Contrast toggle** for increased visual contrast
 - [x] **Text Size slider** (Small to XL) for adjustable text sizing
-- [x] **Language picker** (English / Yorùbá / Igbo) with full translations
+- [x] **Language picker** (English / Español / Français / नेपाली / Yorùbá / Igbo) with full translations including food names, descriptions, announcements, and allergens
 - [x] **Expanded dietary preference toggles** (7 tags: Vegetarian, Vegan, Gluten-Free, High Protein, Dairy-Free, Nut-Free, Halal)
 - [x] Retake Preferences Quiz row
 - [x] **Expanded notification toggles** (Announcements, New Menu Items, Daily Menu Reminder, Meal Period Alerts)
@@ -85,7 +85,7 @@
 - [x] **Arrow navigation buttons** on weekly day picker for motor accessibility
 - [x] **Expanded dietary tags** (7 options including Dairy-Free, Nut-Free, Halal)
 - [x] **Expanded allergen conflict mapping** (dairyFree→dairy, nutFree→nuts)
-- [x] **Multilingual support** — full i18n system with English, Yorùbá, and Igbo translations across all screens
+- [x] **Multilingual support** — full i18n system with 6 languages (English, Spanish, French, Nepali, Yoruba, Igbo) translating all UI, food items, descriptions, announcements, day names, and allergens
 - [x] **Expanded notification controls** (Daily Menu Reminder, Meal Period Alerts)
 - [x] **Admin availability picker** on menu item form (Available / Limited / Sold Out)
 

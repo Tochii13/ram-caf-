@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { ChevronRight, Clock, Search, Star, X, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
-import { t, tMealPeriod } from '@/constants/i18n';
+import { t, tMealPeriod, tFood, tAnnounceTitle, tAnnounceContent } from '@/constants/i18n';
 import FlowTagList from '@/components/FlowTagList';
 import MenuItemCard from '@/components/MenuItemCard';
 import MenuItemDetailView from '@/components/MenuItemDetailView';
@@ -152,7 +152,7 @@ function AnimatedSection({ delay, children }: { delay: number; children: React.R
   );
 }
 
-function RecommendationCard({ item, colors, highContrast, index }: { item: MenuItem; colors: ReturnType<typeof getColors>; highContrast: boolean; index: number }) {
+function RecommendationCard({ item, colors, highContrast, index, lang }: { item: MenuItem; colors: ReturnType<typeof getColors>; highContrast: boolean; index: number; lang: string }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -180,7 +180,7 @@ function RecommendationCard({ item, colors, highContrast, index }: { item: MenuI
           <View style={[styles.recommendationEmojiWrap, { backgroundColor: colors.surfaceTimeBlock }]} accessible={false}>
             <Text style={styles.recommendationEmoji}>{item.emoji}</Text>
           </View>
-          <Text style={[styles.recommendationName, { color: colors.textPrimary }]} numberOfLines={2}>{item.name}</Text>
+          <Text style={[styles.recommendationName, { color: colors.textPrimary }]} numberOfLines={2}>{tFood(lang, item.name)}</Text>
           <View style={styles.recommendationCalRow}>
             <Flame size={12} color={colors.accentGold} />
             <Text style={[styles.recommendationCalories, { color: colors.textSecondary }]}>{item.calories} cal</Text>
@@ -269,7 +269,7 @@ function RatingSheetView({
                     <View style={[styles.ratingEmojiWrap, { backgroundColor: colors.surfaceTimeBlock }]}>
                       <Text style={styles.ratingEmoji}>{item.emoji}</Text>
                     </View>
-                    <Text style={[styles.ratingItemName, { color: colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[styles.ratingItemName, { color: colors.textPrimary }]} numberOfLines={1}>{tFood(lang, item.name)}</Text>
                   </View>
                   <View style={styles.starsRow}>
                     {[1, 2, 3, 4, 5].map((star) => {
@@ -522,8 +522,8 @@ export default function TodayScreen() {
                         <Text style={styles.announcementIconText}>📢</Text>
                       </View>
                       <View style={styles.announcementContent}>
-                        <Text style={[styles.announcementTitle, { color: colors.brandPrimary }]}>{firstAnnouncement.title}</Text>
-                        <Text style={[styles.announcementExcerpt, { color: colors.textSecondary }]} numberOfLines={1}>{firstAnnouncement.content}</Text>
+                        <Text style={[styles.announcementTitle, { color: colors.brandPrimary }]}>{tAnnounceTitle(appLanguage, firstAnnouncement.title)}</Text>
+                        <Text style={[styles.announcementExcerpt, { color: colors.textSecondary }]} numberOfLines={1}>{tAnnounceContent(appLanguage, firstAnnouncement.title, firstAnnouncement.content)}</Text>
                       </View>
                       <ChevronRight size={18} color={colors.brandPrimary} />
                     </View>
@@ -615,7 +615,7 @@ export default function TodayScreen() {
                   <Text style={[styles.pickedSubtitle, { color: colors.textSecondary }]}>{t(appLanguage, 'basedOnPreferences')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendationRow}>
                     {pickedForYou.map((item, index) => (
-                      <RecommendationCard key={item.id} item={item} colors={colors} highContrast={highContrastEnabled} index={index} />
+                      <RecommendationCard key={item.id} item={item} colors={colors} highContrast={highContrastEnabled} index={index} lang={appLanguage} />
                     ))}
                   </ScrollView>
                 </View>

@@ -3,10 +3,10 @@ import { Animated, Pressable, Text, View, StyleSheet, Platform } from 'react-nat
 import * as Haptics from 'expo-haptics';
 import { AlertTriangle, ChevronRight, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
+import { tFood, tFoodDesc, t, tAllergen } from '@/constants/i18n';
 import FlowTagList from '@/components/FlowTagList';
 import { useSession } from '@/contexts/SessionContext';
 import {
-  ALLERGEN_LABELS,
   Allergen,
   AVAILABILITY_CONFIG,
   DietaryTag,
@@ -35,14 +35,14 @@ function getConflictingAllergens(tags: DietaryTag[], allergens: Allergen[]): All
 }
 
 export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardProps) {
-  const { effectiveDietaryTags, effectiveAllergies, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { effectiveDietaryTags, effectiveAllergies, resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const conflicts = useMemo(() => getConflictingAllergens(effectiveDietaryTags, item.allergens), [effectiveDietaryTags, item.allergens]);
   const allergyMatch = useMemo(() => item.allergens.filter((a) => effectiveAllergies.includes(a)), [item.allergens, effectiveAllergies]);
   const allWarnings = useMemo(() => [...new Set([...conflicts, ...allergyMatch])], [conflicts, allergyMatch]);
-  const warningText = useMemo(() => allWarnings.map((allergen) => ALLERGEN_LABELS[allergen]).join(', '), [allWarnings]);
+  const warningText = useMemo(() => allWarnings.map((allergen) => tAllergen(appLanguage, allergen)).join(', '), [allWarnings, appLanguage]);
   const showCaution = allWarnings.length > 0;
   const isSoldOut = item.availability === 'soldOut';
   const availConfig = AVAILABILITY_CONFIG[item.availability];
@@ -88,7 +88,7 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
         </View>
         <View style={styles.content}>
           <View style={styles.nameRow}>
-            <Text style={[styles.name, { color: isSoldOut ? colors.textSecondary : colors.textPrimary }]} numberOfLines={1}>{item.name}</Text>
+            <Text style={[styles.name, { color: isSoldOut ? colors.textSecondary : colors.textPrimary }]} numberOfLines={1}>{tFood(appLanguage, item.name)}</Text>
             {onPress ? <ChevronRight size={16} color={colors.textSecondary} /> : null}
           </View>
           <View style={styles.metaRow}>
@@ -101,7 +101,7 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
               <Text style={[styles.availText, { color: availConfig.color }]}>{availConfig.label}</Text>
             </View>
           </View>
-          <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>{tFoodDesc(appLanguage, item.name, item.description)}</Text>
           {item.dietaryTags.length > 0 ? (
             <FlowTagList style={styles.pills}>
               {item.dietaryTags.map((tag) => (
@@ -127,7 +127,7 @@ export default React.memo(function MenuItemCard({ item, onPress }: MenuItemCardP
           {showCaution ? (
             <View style={[styles.warningRow, { backgroundColor: 'rgba(230,126,34,0.08)' }]}>
               <AlertTriangle size={13} color="#E67E22" />
-              <Text style={[styles.warningText, highContrastEnabled && styles.warningTextHighContrast]}>Contains {warningText}</Text>
+              <Text style={[styles.warningText, highContrastEnabled && styles.warningTextHighContrast]}>{t(appLanguage, 'contains')} {warningText}</Text>
             </View>
           ) : null}
         </View>

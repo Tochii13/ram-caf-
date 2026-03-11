@@ -2,16 +2,15 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, ScrollView, StyleSheet, Text, View, Platform } from 'react-native';
 import { AlertTriangle, Flame } from 'lucide-react-native';
 import { getColors } from '@/constants/colors';
+import { tFood, tFoodDesc, t, tMealPeriod, tAllergen } from '@/constants/i18n';
 import FlowTagList from '@/components/FlowTagList';
 import { useSession } from '@/contexts/SessionContext';
 import {
-  ALLERGEN_LABELS,
   Allergen,
   AVAILABILITY_CONFIG,
   DietaryTag,
   DIETARY_TAG_EMOJIS,
   DIETARY_TAG_LABELS,
-  MEAL_PERIOD_LABELS,
   MenuItem,
 } from '@/types';
 
@@ -55,7 +54,7 @@ function NutritionBar({ label, value, icon, delay, colors }: { label: string; va
 }
 
 export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
-  const { effectiveDietaryTags, resolvedColorScheme, highContrastEnabled } = useSession();
+  const { effectiveDietaryTags, resolvedColorScheme, highContrastEnabled, appLanguage } = useSession();
   const colors = getColors(resolvedColorScheme, highContrastEnabled);
   const conflicts = useMemo(() => getConflictingAllergens(effectiveDietaryTags, item.allergens), [effectiveDietaryTags, item.allergens]);
   const availConfig = AVAILABILITY_CONFIG[item.availability];
@@ -99,11 +98,11 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
           <Text style={styles.emoji} accessible={false}>{item.emoji}</Text>
         </Animated.View>
 
-        <Text style={[styles.name, { color: colors.textPrimary }]}>{item.name}</Text>
+        <Text style={[styles.name, { color: colors.textPrimary }]}>{tFood(appLanguage, item.name)}</Text>
 
         <View style={styles.metaRow}>
           <View style={[styles.periodChip, { backgroundColor: colors.brandPrimaryLight }]}>
-            <Text style={[styles.periodChipText, { color: colors.brandPrimary }]}>{MEAL_PERIOD_LABELS[item.mealPeriod]}</Text>
+            <Text style={[styles.periodChipText, { color: colors.brandPrimary }]}>{tMealPeriod(appLanguage, item.mealPeriod)}</Text>
           </View>
           <View style={[styles.calChip, { backgroundColor: colors.accentGoldLight }]}>
             <Flame size={12} color={colors.accentGold} />
@@ -115,7 +114,7 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
           </View>
         </View>
 
-        <Text style={[styles.description, { color: colors.textSecondary }]}>{item.description}</Text>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>{tFoodDesc(appLanguage, item.name, item.description)}</Text>
       </Animated.View>
 
       {item.dietaryTags.length > 0 ? (
@@ -150,7 +149,7 @@ export default function MenuItemDetailView({ item }: MenuItemDetailViewProps) {
             <View style={styles.allergenTextWrap}>
               <Text style={styles.allergenLabel}>Allergen Warning</Text>
               <Text style={styles.allergenText}>
-                Contains: {conflicts.map((a) => ALLERGEN_LABELS[a]).join(', ')}
+                {t(appLanguage, 'contains')}: {conflicts.map((a) => tAllergen(appLanguage, a)).join(', ')}
               </Text>
             </View>
           </View>
