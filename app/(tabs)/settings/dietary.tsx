@@ -95,6 +95,8 @@ export default function DietarySettingsScreen() {
           placeholderTextColor={colors.textSecondary}
           value={otherDietaryText}
           onChangeText={setOtherDietaryText}
+          autoComplete="off"
+          textContentType="none"
         />
       </Card>
 

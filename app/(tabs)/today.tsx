@@ -477,6 +477,8 @@ export default function TodayScreen() {
                 onBlur={() => Animated.spring(searchBarScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 4 }).start()}
                 accessibilityLabel="Search menu items"
                 testID="menu-search-input"
+                autoComplete="off"
+                textContentType="none"
               />
               {isSearching ? (
                 <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">

@@ -93,6 +93,8 @@ export default function AllergiesSettingsScreen() {
           placeholderTextColor={colors.textSecondary}
           value={otherAllergiesText}
           onChangeText={setOtherAllergiesText}
+          autoComplete="off"
+          textContentType="none"
         />
       </Card>
 

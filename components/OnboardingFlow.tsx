@@ -250,6 +250,8 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
                 placeholderTextColor={colors.textSecondary}
                 value={otherDietaryText}
                 onChangeText={setOtherDietaryText}
+                autoComplete="off"
+                textContentType="none"
               />
             </ScrollView>
             <Pressable
@@ -286,6 +288,8 @@ export default function OnboardingFlow({ isRerun = false, onComplete }: Onboardi
                 placeholderTextColor={colors.textSecondary}
                 value={otherAllergiesText}
                 onChangeText={setOtherAllergiesText}
+                autoComplete="off"
+                textContentType="none"
               />
             </ScrollView>
             <Pressable

@@ -111,6 +111,8 @@ function AuthInput({
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          autoComplete="off"
+          textContentType="none"
           style={[styles.input, { backgroundColor: colors.backgroundCard, color: colors.textPrimary }]}
           testID={testID}
           onFocus={handleFocus}
