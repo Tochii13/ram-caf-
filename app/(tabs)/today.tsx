@@ -468,7 +468,7 @@ export default function TodayScreen() {
             <View style={[styles.searchBar, { backgroundColor: colors.backgroundCard, shadowColor: colors.shadow }]}>
               <Search size={18} color={colors.textSecondary} />
               <TextInput
-                style={[styles.searchInput, { color: colors.textPrimary }]}
+                style={[styles.searchInput, { color: colors.textPrimary, backgroundColor: 'transparent' }]}
                 placeholder={t(appLanguage, 'searchMenuItems')}
                 placeholderTextColor={colors.textSecondary}
                 value={searchQuery}
@@ -479,6 +479,8 @@ export default function TodayScreen() {
                 testID="menu-search-input"
                 autoComplete="off"
                 textContentType="none"
+                autoCorrect={false}
+                spellCheck={false}
               />
               {isSearching ? (
                 <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel="Clear search" accessibilityRole="button">
